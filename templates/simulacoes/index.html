@@ -1,0 +1,58 @@
+{% extends 'big_one/page.html' %}
+
+{% load static %}
+
+{% block title %}
+    PIBID | Simulações Físicas
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="container">
+        <h1 class="display-5 fw-bold">Simulações Físicas com Python</h1>
+        <p class="lead">Explore conceitos de Física de forma interativa por meio de simulações desenvolvidas em Python.</p>
+        <a href="#simulacoes" class="btn btn-primary btn-lg">Ver Simulações</a>
+    </div>
+</section>
+
+<!-- Simulações em destaque -->
+<section id="simulacoes" class="py-5">
+    <div class="container">
+        <h2 class="mb-4 text-center">Simulações Disponíveis</h2>
+        <div class="row g-4">
+            <!-- Card 1 -->
+            <div class="col-md-4">
+                <div class="card simul-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Lançamento Oblíquo</h5>
+                        <p class="card-text">Simule a trajetória de um projétil variando velocidade e ângulo de lançamento.</p>
+                        <a href="{% url 'simulacao_projetil' %}" class="btn btn-outline-primary">Acessar Simulação</a>
+                    </div>
+                </div>
+            </div>
+            <!-- Card 2 -->
+            <div class="col-md-4">
+                <div class="card simul-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Curva de Aquecimento da Água</h5>
+                        <p class="card-text">Simule o aquecimento de uma substância (água), mostrando a curva de aquecimento com variação de temperatura ao longo do tempo e considerando as mudanças de estado físico (sólido → líquido → gasoso), com uso de gráfico gerado com Python/Matplotlib.</p>
+                        <a href="{% url 'curva_aquecimento' %}" class="btn btn-outline-primary">Acessar Simulação</a>
+                    </div>
+                </div>
+            </div>
+            <!-- Card 3 -->
+            <div class="col-md-4">
+                <div class="card simul-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Pêndulo Simples</h5>
+                        <p class="card-text">Veja como variam o período e a amplitude em um pêndulo físico ideal.</p>
+                        <a href="#" class="btn btn-outline-primary">Acessar Simulação</a>
+                    </div>
+                </div>
+            </div>
+            <!-- Mais simulações podem ser adicionadas aqui -->
+        </div>
+    </div>
+</section>
+{% endblock %}

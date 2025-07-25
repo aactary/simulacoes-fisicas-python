@@ -1,0 +1,364 @@
+{% extends 'big_one/page.html' %}
+
+{% load static %}
+
+{% block title %}
+PIBID | Simulações Físicas
+{% endblock %}
+
+{% block style %}
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+    .simulacao-section {
+        padding: 60px 0;
+    }
+
+    .grafico-box {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 20px;
+        min-height: 300px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Seção principal -->
+<section class="simulacao-section">
+    <div class="container">
+        <h2 class="mb-4 text-center">{{ titulo_simulacao|default:"Simulação: Curva de Aquecimento da Água" }}</h2>
+
+        <div class="row">
+            <!-- Formulário -->
+            <div class="col-md mb-2">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Insira os parâmetros</h5>
+                        <form method="get" class="row g-3">
+                            {% csrf_token %}
+                            <div class="col-md-4">
+                                <label for="massa" class="form-label">Massa da água (g)</label>
+                                <input type="number" class="form-control" id="massa" name="massa" step="10" value="{{ massa }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="temp_inicial" class="form-label">Temperatura Inicial (°C)</label>
+                                <input type="number" class="form-control" id="temp_inicial" name="temp_inicial" step="1" value="{{ temp_inicial }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="temp_final" class="form-label">Temperatura Final (°C)</label>
+                                <input type="number" class="form-control" id="temp_final" name="temp_final" step="1" value="{{ temp_final }}">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">Simular Aquecimento</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <!-- Área da Simulação/Gráfico -->
+            <div class="col-md">
+                <div class="grafico-box">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th colspan="4">Resultado da Simulação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th>Massa</th>
+                                <th>Temperatura Inicial</th>
+                                <th>Temperatura Final</th>
+                                <th>Energia Total</th>
+                            </tr>
+                            <tr>
+                                <td>{{massa}} $g$</td>
+                                <td>{{ temp_inicial }} °C</td>
+                                <td>{{ temp_final }} °C</td>
+                                <td>{{energia_total}} $J$</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <!-- <h2 class="mb-4">Resultado da Simulação</h2>
+                    <p><strong>Massa:</strong> {{ massa }} g</p>
+                    <p><strong>Temperatura Inicial:</strong> {{ temp_inicial }} °C</p>
+                    <p><strong>Temperatura Final:</strong> {{ temp_final }} °C</p> -->
+
+                    <div class="text-center">
+                        <img src="data:image/png;base64,{{ imagem_grafico }}" alt="Gráfico da Curva de Aquecimento" class="img-fluid rounded shadow">
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Descrição opcional da simulação -->
+        <!-- <div class="mt-4">
+            <h5>Descrição:</h5>
+            <p>{{ descricao_simulacao|default:"Esta simulação permite visualizar o comportamento de um sistema físico com base nos parâmetros inseridos." }}</p>
+        </div> -->
+
+        <div class="row">
+            <div class="col-md mt-2">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light border-bottom">
+                        <ul class="nav nav-tabs card-header-tabs" id="simulacaoTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="formulas-tab" data-bs-toggle="tab"
+                                    data-bs-target="#formulas" type="button" role="tab" aria-controls="formulas"
+                                    aria-selected="true">Fórmulas</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="roteiro-tab" data-bs-toggle="tab" data-bs-target="#roteiro"
+                                    type="button" role="tab" aria-controls="roteiro" aria-selected="false">
+                                    Sugestão: Plano de Aula
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="codigo-tab" data-bs-toggle="tab" data-bs-target="#codigo"
+                                    type="button" role="tab" aria-controls="codigo" aria-selected="false">Código
+                                    Fonte</button>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="tab-content" id="simulacaoTabsContent">
+                            <!-- Fórmulas -->
+                            <div class="tab-pane fade show active" id="formulas" role="tabpanel" aria-labelledby="formulas-tab">
+                                <h5>Calor sensível: $$ \boxed{Q = m \cdot c \cdot \Delta T}$$</h5>
+                                <p>
+                                    Onde: <br>
+                                    $Q$: calor sensível $(J)$ <br>
+                                    $m$: massa $(g)$ <br>
+                                    $c$: calor específico $(J / g \cdot ^\circ C)$ <br>
+                                    $\Delta T$: variação de temperatura $(^\circ C)$
+                                </p>
+                                <h5>Calor latente: $$\boxed{Q = m \cdot L}$$</h5>
+                                <p>
+                                    Onde: <br>
+                                    $Q$: calor sensível $(J)$ <br>
+                                    $m$: massa $(g)$ <br>
+                                    $L$: calor latente específico $(J/g)$
+                                </p>
+                                <h5>Valores usados na simulação</h5>
+                                <ul>
+                                    <li>Calor específico do gelo: $c = 2{,}1 \ \text{J/g} \cdot ^\circ C$</li>
+                                    <li>Calor específico da água líquida: $c = 4{,}18 \ \text{J/g} \cdot ^\circ C$</li>
+                                    <li>Calor específico do vapor: $c = 2{,}0 \ \text{J/g} \cdot ^\circ C$</li>
+                                    <li>Calor latente de fusão: $L_f = 334 \ \text{J/g}$</li>
+                                    <li>Calor latente de vaporização: $L_v = 2260 \ \text{J/g}$</li>
+                                </ul>
+
+                                <hr>
+
+                            <h5>Exercício:</h5>
+                            <p>Determine a quantidade de calor necessária para transformar $20 g$ de gelo à $-30^\circ C$ em $20 g$ de vapor d’água à $120^\circ C$.</p>
+                            <p>
+                                Dados: <br>
+                                Calor específico do gelo: $0,5 cal/g \cdot^\circ C$ <br>
+                                Calor latente de fusão: $80 cal/g$ <br>
+                                Calor específico da água: $1,0 cal/g \cdot^\circ C$ <br>
+                                Calor latente de vaporização: $540 cal/g$ <br>
+                                Calor específico do vapor d'água: $0,5 cal/g \cdot^\circ C$ 
+                            </p>
+                            <p>Faça os calculos em calorias e no final converta para Joules $(1 cal = 4,18 J)$ e verifique no gráfico os resultados.</p>
+
+                            </div>
+
+                            <!-- Roteiro de Aula -->
+                            <div class="tab-pane fade" id="roteiro" role="tabpanel" aria-labelledby="roteiro-tab">
+                                <h4><i class="bi bi-pin-angle-fill"></i> Proposta de Plano de Aula: Curva de Aquecimento da Água</h4>
+
+                                <h5>1. Identificação:</h5>
+                                <ul>
+                                    <li><strong>Nível de Ensino:</strong> Médio</li>
+                                    <li><strong>Instituição:</strong> [A ser preenchido]</li>
+                                    <li><strong>Natureza:</strong> Aula Regular</li>
+                                    <li><strong>Docente Responsável:</strong> [A ser preenchido]</li>
+                                    <li><strong>Modalidade:</strong> Presencial</li>
+                                    <li><strong>Área do Conhecimento:</strong> Física</li>
+                                    <li><strong>Tema da Aula:</strong> Calorimetria</li>
+                                    <li><strong>Título da Aula:</strong>  Visualizando a Mudança de Fase: Análise da Curva de Aquecimento da Água com Python</li>
+                                    <li><strong>Tipo Predominante:</strong> Experimental com Simulações</li>
+                                    <li><strong>Duração prevista:</strong> 45 minutos</li>
+                                </ul>
+
+                                <h5>2. Problema</h5>
+                                <p>Como podemos visualizar e diferenciar o que acontece com a temperatura da água enquanto ela recebe calor continuamente, desde o estado sólido (gelo) até o estado gasoso (vapor)? Por que a temperatura para de subir em certos momentos, mesmo que continuemos a fornecer energia?</p>
+
+                                <h5>3. Objetivo Principal</h5>
+                                <p>
+                                    Analisar e interpretar o gráfico da curva de aquecimento da água, gerado por uma simulação computacional, para diferenciar e compreender os conceitos de calor sensível (variação de temperatura) e calor latente (mudança de estado físico).
+                                </p>
+                                <h6>3.1. Objetivos Complementares</h6>
+                                <ul>
+                                    <li>Identificar os patamares de fusão e ebulição no gráfico como períodos de mudança de fase.</li>
+                                    <li>Relacionar as partes inclinadas do gráfico com o aquecimento da substância em um único estado físico (sólido, líquido ou gasoso).</li>
+                                    <li>Compreender que, durante a mudança de fase, a energia recebida (calor latente) é usada para reorganizar as moléculas, e não para aumentar a temperatura.</li>
+                                    <li> Introduzir a noção de como simulações computacionais podem ser usadas para modelar e entender fenômenos físicos.</li>
+                                </ul>
+
+                                <h5>4. Conhecimentos Introdutórios Relevantes</h5>
+                                <p>
+                                    Para que os objetivos da aula sejam alcançados, é imprescindível que os alunos já tenham sido introduzidos aos seguintes conceitos:
+                                </p>
+                                <ul>
+                                    <li>Temperatura e Calor: A diferença fundamental entre os dois conceitos.</li>
+                                    <li>Estados Físicos da Matéria: Sólido, líquido e gasoso.</li>
+                                    <li>Mudanças de Estado Físico: Fusão, vaporização, etc.</li>
+                                    <li>Leitura de Gráficos: Habilidade básica de interpretar eixos (x, y) e a forma de uma curva.</li>
+                                </ul>
+
+                                <h5>5. Metodologia (Uso de Simulação e Programação Python)</h5>
+                                <p>
+                                    A aula será baseada na apresentação de uma simulação computacional desenvolvida em Python, que gera um gráfico da curva de aquecimento da água. Os alunos irão observar a simulação, interpretar os dados gerados e relacionar as fases do gráfico aos conceitos de calor sensível, calor latente e mudanças de estado físico.
+                                </p>
+                                <h6>5.1. Estratégias Didáticas</h6>
+                                <ul>
+                                    <li>Introdução (5 min): breve contextualização sobre os conceitos de calor sensível e latente e como ocorrem as mudanças de fase da água.</li>
+                                    <li>Execução da Simulação (15 min): apresentação da simulação em Python com gráfico da curva de aquecimento. O professor explicará os trechos do gráfico durante a execução.</li>
+                                    <li>Discussão Guiada (15 min): questionamento dos alunos sobre o que ocorre em cada trecho do gráfico; identificação coletiva dos pontos de fusão, ebulição, calor sensível e latente.</li>
+                                    <li>Atividade de Fixação (10 min): os alunos responderão a um pequeno questionário em duplas, com base no gráfico apresentado.</li>
+                                </ul>
+                                <p class="alert alert-light">
+                                    Observação: A aula poderá ocorrer em laboratório de informática (1 computador por dupla) ou em sala de aula com o uso de notebook e datashow, com interação coletiva.
+                                </p>
+
+                                <h5>6. Recursos Necessários</h5>
+                                <ul>
+                                    <li>Computadores com Python instalado (ou ambiente online como Google Colab).</li>
+                                    <li>Datashow e notebook (caso não haja laboratório disponível).</li>
+                                    <li>Cópias impressas ou digitais do gráfico da curva de aquecimento.</li>
+                                    <li>Questionário de fixação.</li>
+                                </ul>
+
+                                <h5>7. Proposta de Avaliação</h5>
+                                <p>
+                                    A avaliação será formativa, baseada na participação nas discussões, na interpretação correta do gráfico da curva de aquecimento e nas respostas ao questionário de fixação.
+                                </p>
+                                <h6>7.1. Especificação dos Elementos Formais de Avaliação</h6>
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Elemento Avaliado</th>
+                                            <th>Critério de Sucesso</th>
+                                            <th>Peso (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Participação na discussão</td>
+                                            <td>Contribui com ao menos uma interpretação correta ou pergunta relevante</td>
+                                            <td>30%</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Interpretação do gráfico</td>
+                                            <td>Identifica corretamente os trechos de calor sensível e calor latente</td>
+                                            <td>40%</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Questionário de fixação</td>
+                                            <td>Acerto de pelo menos 70% das questões</td>
+                                            <td>30%</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <h5>8. Sugestões de Leituras Complementares</h5>
+                                <ul>
+                                    <li>HEWITT, Paul G. Física Conceitual – Capítulo sobre Calor e Temperatura.</li>
+                                    <li>HALLIDAY, David; RESNICK, Robert; WALKER, Jearl. Fundamentos de Física – Volume 2 – Tópicos de Termodinâmica.</li>
+                                    <li>SERWAY, Raymond A.; JEWETT, John W. Princípios de Física – Seções sobre energia térmica e mudanças de fase.</li>
+                                </ul>
+
+                                <h5>9. Referências</h5>
+                                <ul>
+                                    <li>FERREIRA, Marcello; FILHO, Olavo L. S. Proposta de plano de aula para o ensino de Física. Physicae Organum, Brasília, v. 5, n. 1, p. 39–44, 2019.</li>
+                                    <li>HEWITT, Paul G. Física conceitual [recurso eletrônico] / Paul G. Hewitt ; tradução: Trieste Freire Ricci ; revisão técnica: Maria Helena Gravina. – 12. ed. – Porto Alegre: Bookman, 2015.</li>
+                                    <li>HALLIDAY, David; RESNICK, Robert; WALKER, Jearl. Fundamentos de Física – Volume 2: Termodinâmica. 8. ed. – Rio de Janeiro: LTC, 2011.</li>
+                                </ul>
+                            </div>
+
+                            <!-- Código Fonte -->
+                            <div class="tab-pane fade" id="codigo" role="tabpanel" aria-labelledby="codigo-tab">
+                                <h5>Google Colab Notebook</h5>
+                                <p>Acesse o código-fonte clicando no link abaixo:</p>
+
+                                <a href="https://colab.research.google.com/drive/1a8VWLDvjRH9lBdDeLKSxIqQtiiaR6In4?usp=sharing" target="_blank" rel="noopener">
+                                    <img style="width: 200px; height: auto;" src="https://colab.research.google.com/assets/colab-badge.svg" alt="Abrir no Google Colab" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}
+
+{% block script %}
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"
+    integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/js/selectize.min.js"
+    integrity="sha512-IOebNkvA/HZjMM7MxL0NYeLYEalloZ8ckak+NDtOViP7oiYzG5vn6WVXyrJDiJPhl4yRdmNAG49iuLmhkUdVsQ=="
+    crossorigin="anonymous" referrerpolicy="no-referrer">
+    </script>
+<script>
+    //var selectLeague = $('#escola').selectize();
+    //var selectSeason = $('#aplicador').selectize();
+
+    function showOverLay() {
+        const overlays = document.querySelectorAll('.overlay')
+
+        overlays.forEach(function (overlay) {
+            overlay.classList.remove('d-none')
+        })
+    }
+
+    function hideOverLay() {
+        const overlays = document.querySelectorAll('.overlay')
+
+        overlays.forEach(function (overlay) {
+            overlay.classList.add('d-none')
+        })
+    }
+
+    async function geraGraficoSimulacao() {
+        showOverLay()
+        try {
+            let query_params = '?velocidade=' + document.querySelector('#velocidade').value + '&angulo=' +
+                document.querySelector('#angulo').value + '&gravidade=' +
+                document.querySelector('#gravidade').value
+            const request = await fetch("http://127.0.0.1:8000/api/lancamento-projetil/" + query_params)
+            const response = await request.json()
+            console.log(response)
+            // 
+            const grafico = document.querySelector('#imagem_grafico')
+            grafico.src = "data:image/png;base64, " + response.imagem_grafico
+            document.querySelector('#altura-maxima').value = response.altura_maxima + 'm'
+            document.querySelector('#alcance').value = response.alcance + 'm'
+            document.querySelector('#tempo_total').value = response.tempo_total + 's'
+        } catch (error) {
+            console.log(error)
+        }
+        hideOverLay()
+    }
+
+</script>
+
+{% endblock %}
