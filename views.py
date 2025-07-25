@@ -13,7 +13,6 @@
 #
 # Você deve ter recebido uma cópia da Licença Pública Geral GNU
 # junto com este programa. Se não, veja <https://www.gnu.org/licenses/>.
-#
 
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
