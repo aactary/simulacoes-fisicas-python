@@ -12,10 +12,6 @@ venv/
 .idea/
 *.swp
 
-# Static/media (Django)
-/static/
-/media/
-
 # Logs
 *.log
 *.pid
