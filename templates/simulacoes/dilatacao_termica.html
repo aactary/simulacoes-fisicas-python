@@ -1,0 +1,470 @@
+{% extends 'manu/base.html' %}
+{% load static %}
+
+{% block title %}{{ simulation.title }} - Simulações Físicas com Python{% endblock %}
+
+{% block extra_css %}
+<style>
+    .simulation-controls {
+        position: sticky;
+        top: 120px;
+        z-index: 100;
+    }
+    
+    .parameter-slider {
+        margin-bottom: 1rem;
+    }
+    
+    .parameter-value {
+        font-weight: 600;
+        color: var(--primary-blue);
+    }
+    
+    .simulation-running {
+        border: 2px solid var(--accent-green);
+        box-shadow: 0 0 20px rgba(5, 150, 105, 0.3);
+    }
+    
+    .code-tabs .nav-link {
+        color: var(--gray-600);
+        border: none;
+        background: var(--gray-100);
+        margin-right: 0.25rem;
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+    
+    .code-tabs .nav-link.active {
+        background: var(--gray-900);
+        color: white;
+    }
+    
+    .formula-container {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+        border: 2px solid rgba(37, 99, 235, 0.1);
+        border-radius: 1rem;
+        padding: 2rem;
+        margin: 1rem 0;
+    }
+    
+    .lesson-objective {
+        background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        border-left: 4px solid var(--accent-green);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header da Simulação -->
+<div class="simulation-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg">
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb text-white-50">
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'simulacoes:index' %}" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-house me-1"></i>Início
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">
+                            {{ simulation.category|default:"Mecânica" }}
+                        </li>
+                    </ol>
+                </nav>
+                <h1 class="display-5 fw-bold mb-3">
+                    <i class="bi bi-{{ simulation.icon }} me-3"></i>
+                    {{ simulation.title|default:"Lançamento de Projéteis" }}
+                </h1>
+                <p class="lead mb-0">
+                    {{ simulation.description|default:"" }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row">
+        <!-- Coluna Principal - Simulação e Visualização -->
+        <div class="col-lg">
+            <!-- Controles da Simulação -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-sliders"></i>
+                    Parâmetros da Simulação
+                </h3>
+                <div class="parameters-form">
+                    
+                    <form method="get" class="row g-3 align-items-end">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md">
+                                <label for="comprimento" class="form-label">Comprimento Inicial (m)</label>
+                                <input type="number" class="form-control" id="comprimento" name="comprimento" value="{{ L0 }}">
+                            </div>
+                            <div class="col-md">
+                                <label for="coeficiente" class="form-label">Coef. de Dilatação Linear (ºC$^{-1}$)</label>
+                                <div class="input-group">
+                                    <select class="form-select" id="coeficiente" name="coeficiente">
+                                        <option selected disabled>Escolha um material</option>
+                                        <option value="22.5" {% if alpha == 22.5 %}selected{% endif %}>Alumínio</option>
+                                        <option value="17" {% if alpha == 17 %}selected{% endif %}>Cobre</option>
+                                        <option value="12" {% if alpha == 12 %}selected{% endif %}>Ferro</option>
+                                        <option value="10" {% if alpha == 10 %}selected{% endif %}>Concreto</option>
+                                        <option value="9" {% if alpha == 9 %}selected{% endif %}>Vidro Comum</option>
+                                    </select>
+                                    <!-- <span class="input-group-text">$\times 10^{-6}$ &nbsp; ºC$^{-1}$</span> -->
+                                </div>
+                            </div>
+                            <div class="col-md">
+                                <label for="temp_inicial" class="form-label">Temperatura Inicial (°C)</label>
+                                <input type="number" class="form-control" id="temp_inicial" name="temp_inicial" step="1" value="{{ T0 }}">
+                            </div>
+                            <div class="col-md">
+                                <label for="temp_final" class="form-label">Temperatura Final (°C)</label>
+                                <input type="number" class="form-control" id="temp_final" name="temp_final" step="1" value="{{ Tmax }}">
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="d-flex gap-3">
+                                    <button type="submit" class="btn btn-simulate" id="startSimulation">
+                                        <i class="bi bi-play-fill me-2"></i>
+                                        Iniciar Simulação
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" disabled id="pauseSimulation">
+                                        <i class="bi bi-pause-fill me-2"></i>
+                                        Pausar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" disabled id="resetSimulation">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>
+                                        Reiniciar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Área de Visualização -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-graph-up"></i>
+                    Visualização da Simulação
+                </h3>
+                <div class="row">
+                    <div class="col-12">
+                        <!-- Animação do Movimento -->
+                        <div class="visualization-area mb-4" id="animationArea">
+                            {% if grafico_dilatacao %}
+                            {{ grafico_dilatacao|safe }}
+                            {% else %}
+                            <div class="text-center">
+                                <i class="bi bi-play-circle fs-1 text-muted mb-3"></i>
+                                <h5 class="text-muted">Clique em "Iniciar Simulação" para visualizar o movimento</h5>
+                                <p class="text-muted">A animação mostrará o objeto em movimento retilíneo uniforme</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                
+                <!-- Dados em Tempo Real -->
+                <div class="real-time-data bg-light rounded-3 p-3">
+                    <h6 class="mb-3">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        Dados da Simulação
+                    </h6>
+                    <div class="row text-center">
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-primary" id="currentTime">{{t0}} ºC</div>
+                                <div class="data-label text-muted">Temperatura Inicial</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-success" id="currentPosition">{{tf}} ºC</div>
+                                <div class="data-label text-muted">Temperatura Final</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-info" id="currentVelocity">{{delta_L}} m</div>
+                                <div class="data-label text-muted">Variação de Comprimento $ \Delta L $</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-warning" id="currentDistance">{{Lf}} m</div>
+                                <div class="data-label text-muted">Comprimento Final $L$</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fórmulas Matemáticas -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-calculator"></i>
+                    Fórmulas Matemáticas
+                </h3>
+                <div class="formula-container">
+                    <!-- <h5 class="text-center mb-4 text-primary">Movimento Retilíneo Uniforme</h5> -->
+                    
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Dilatação Linear $\Delta L$</h6>
+                                <div class="formula-math text-center">
+                                    $$  \Delta L = L_0 \cdot \alpha \cdot \Delta T $$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: $\Delta L$ = variação do comprimento, $L_0$ = comprimento inicial, $\alpha$ = coeficiente de dilatação linear, $\Delta T$ = variação de temperatura
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Variação de Temperatura $\Delta T$</h6>
+                                <div class="formula-math text-center">
+                                    $$ \Delta T = T_0 - T_f $$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: $\Delta T$ = variação de temperatura, $T_0$ = temperatura inicial, $T_f$ = temperatura final
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Comprimento Final $L$</h6>
+                                <div class="formula-math text-center">
+                                    $$ L = L_0 + \Delta L $$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                   Onde: $L$ = comprimento final, $L_0$ = comprimento inicial, $\Delta L$ = variação do comprimento
+                                </small>
+                            </div>
+                        </div>
+                        <!-- <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Condição para MRU</h6>
+                                <div class="formula-math text-center">
+                                    $$a = 0 \Rightarrow v = \text{constante}$$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    No MRU, a aceleração é zero e a velocidade permanece constante
+                                </small>
+                            </div>
+                        </div> -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Código da Aplicação -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-code-slash"></i>
+                    Anexos
+                </h3>
+                <div class="code-section">
+                    <ul class="nav nav-tabs" id="codeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="python-tab" data-bs-toggle="tab" data-bs-target="#python-code" type="button" role="tab">
+                                <i class="bi bi-file-code me-1"></i>
+                                Plano de Aula
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="javascript-tab" data-bs-toggle="tab" data-bs-target="#javascript-code" type="button" role="tab">
+                                <i class="bi bi-filetype-py me-1"></i>
+                                Código Fonte
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="html-tab" data-bs-toggle="tab" data-bs-target="#html-code" type="button" role="tab">
+                                <i class="bi bi-filetype-html me-1"></i>
+                                Exercícios
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="codeTabsContent">
+                        <div class="tab-pane fade show active" id="python-code" role="tabpanel">
+                            <div class="">
+                                <!-- plano de aula  -->
+                                <br>
+
+                                <h2>Plano de Aula: Dilatação Linear (Barra Metálica)</h2>
+
+                                <h3>1. Identificação</h3>
+                                <ul>
+                                    <li><strong>Nível de Ensino:</strong> Ensino Médio</li>
+                                    <li><strong>Instituição:</strong> [A preencher]</li>
+                                    <li><strong>Natureza:</strong> Aula Regular</li>
+                                    <li><strong>Docente Responsável:</strong> [A preencher]</li>
+                                    <li><strong>Modalidade:</strong> Presencial</li>
+                                    <li><strong>Área do Conhecimento:</strong> Física</li>
+                                    <li><strong>Tema da Aula:</strong> Termodinâmica</li>
+                                    <li><strong>Título da Aula:</strong> Dilatação Linear: Da Teoria à Simulação</li>
+                                    <li><strong>Tipo Predominante:</strong> Mista (teórica / experimental com simulação)</li>
+                                    <li><strong>Duração Prevista:</strong> 50 minutos</li>
+                                </ul>
+
+                                <h3>2. Problema</h3>
+                                <p>Por que existem espaços (juntas de dilatação) entre os blocos de concreto em pontes e calçadas? Por que os fios elétricos nos postes parecem mais "esticados" em dias frios e mais "curvos" em dias quentes? Como podemos prever e calcular a variação no tamanho de um objeto quando sua temperatura muda?</p>
+
+                                <h3>3. Objetivo Principal</h3>
+                                <p>Compreender o fenômeno da dilatação linear, utilizando uma simulação computacional em Python para visualizar como o comprimento de uma barra metálica é afetado pela variação de temperatura e pelas propriedades do material.</p>
+
+                                <h3>3.1. Objetivos Complementares</h3>
+                                <ul>
+                                    <li>Relacionar o fenômeno da dilatação com exemplos práticos do cotidiano.</li>
+                                    <li>Introduzir e aplicar a fórmula da dilatação linear: ΔL = L₀ . α . ΔT.</li>
+                                    <li>Identificar as variáveis que influenciam a dilatação: comprimento inicial (L₀), coeficiente de dilatação linear (α) e variação de temperatura (ΔT).</li>
+                                    <li>Desenvolver a capacidade de prever resultados (qualitativos e quantitativos) a partir da manipulação de variáveis em uma simulação.</li>
+                                </ul>
+
+                                <h3>4. Conhecimentos Introdutórios Relevantes</h3>
+                                <p>Para o bom aproveitamento da aula, é fundamental que os alunos possuam noções básicas sobre:</p>
+                                <ul>
+                                    <li><strong>Temperatura:</strong> O que é e como é medida (escalas Celsius, por exemplo).</li>
+                                    <li><strong>Estrutura Atômica da Matéria:</strong> A ideia de que os sólidos são compostos por átomos que vibram em posições fixas.</li>
+                                    <li><strong>Operações Matemáticas Básicas:</strong> Multiplicação e manipulação de fórmulas simples.</li>
+                                </ul>
+
+                                <h3>5. Metodologia (Uso de Simulação e Programação Python)</h3>
+                                <p>A aula adotará uma metodologia mista, integrando uma exposição teórica dialogada com uma atividade investigativa baseada em simulação. O uso da simulação em Python servirá como uma ponte entre a teoria abstrata e a visualização do fenômeno, permitindo que os alunos "experimentem" virtualmente o efeito da dilatação ao controlar as variáveis envolvidas, algo que seria difícil de medir com precisão em uma sala de aula convencional.</p>
+
+                                <h3>5.1. Estratégias Didáticas</h3>
+                                <ol>
+                                    <li><strong>Contextualização e Problematização (10 min):</strong>
+                                        <ul>
+                                            <li>O professor iniciará a aula apresentando imagens de exemplos cotidianos de dilatação: juntas em pontes, trilhos de trem, fios de postes.</li>
+                                            <li>A partir das imagens, será lançada a pergunta-problema, incentivando os alunos a formularem hipóteses sobre o porquê desses fenômenos ocorrerem.</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Exposição Teórica (15 min):</strong>
+                                        <ul>
+                                            <li>O professor explicará o conceito de dilatação térmica a nível microscópico (aumento da agitação e do espaçamento dos átomos).</li>
+                                            <li>A fórmula da dilatação linear (ΔL = L₀ . α . ΔT) será apresentada no quadro, e cada termo será explicado:
+                                                <ul>
+                                                    <li><strong>ΔL:</strong> A variação do comprimento.</li>
+                                                    <li><strong>L₀:</strong> O comprimento inicial.</li>
+                                                    <li><strong>α (alfa):</strong> O coeficiente de dilatação linear (explicando que é uma propriedade específica de cada material).</li>
+                                                    <li><strong>ΔT:</strong> A variação de temperatura ($T_{final} - T_{inicial}$).</li>
+                                                </ul>
+                                            </li>
+                                            <li>Um exemplo numérico simples será resolvido no quadro com a participação dos alunos.</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Atividade com a Simulação (20 min):</strong>
+                                        <ul>
+                                            <li>O professor apresentará a simulação em Python (em um telão via datashow ou nos computadores do laboratório).</li>
+                                            <li>Será conduzida uma exploração guiada:
+                                                <ul>
+                                                    <li><strong>Passo 1:</strong> Manter L₀ e α fixos e variar apenas a temperatura final (Tƒ). Os alunos observarão a animação e o resultado da dilatação.</li>
+                                                    <li><strong>Passo 2:</strong> Manter L₀ e ΔT fixos e testar diferentes coeficientes (α), como o do alumínio e o do aço, para que os alunos vejam que materiais diferentes dilatam de formas diferentes.</li>
+                                                    <li><strong>Passo 3:</strong> Manter α e ΔT fixos e alterar o comprimento inicial (L₀) para mostrar que objetos maiores sofrem uma variação de comprimento maior.</li>
+                                                </ul>
+                                            </li>
+                                            <li>Em cada passo, o professor deve questionar os alunos sobre o que eles esperam que aconteça antes de rodar a simulação, e depois comparar a previsão com o resultado.</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Conclusão e Sistematização (5 min):</strong>
+                                        <ul>
+                                            <li>O professor fará um fechamento, retomando as perguntas iniciais sobre as pontes e os fios elétricos, e pedindo aos alunos que expliquem os fenômenos com base no que aprenderam e visualizaram na simulação.</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+
+                                <h3>6. Recursos Necessários</h3>
+                                <ul>
+                                    <li><strong>Opção 1 (Laboratório de Informática):</strong> Computadores para os alunos com Python e as bibliotecas necessárias instaladas, além do script da simulação.</li>
+                                    <li><strong>Opção 2 (Sala de Aula):</strong> Um notebook para o professor, um projetor (datashow) e um telão.</li>
+                                    <li>Quadro branco ou lousa e pincéis/giz.</li>
+                                    <li>Script da simulação de dilatação linear em Python.</li>
+                                </ul>
+
+                                <h3>7. Proposta de Avaliação</h3>
+                                <p>A avaliação será formativa e contínua, focada na participação e na capacidade dos alunos de correlacionar os conceitos teóricos com os resultados observados na simulação.</p>
+
+                                <h3>7.1. Especificação dos Elementos Formais de Avaliação</h3>
+                                <ul>
+                                    <li><strong>Participação Oral:</strong> Observação das respostas dos alunos às perguntas feitas durante a aula, especialmente durante a contextualização e a exploração da simulação.</li>
+                                    <li><strong>Análise Preditiva:</strong> Avaliar a capacidade dos alunos de prever o que acontecerá na simulação ao alterar uma das variáveis (L₀, α, ou ΔT).</li>
+                                    <li><strong>Exercício de Saída:</strong> Propor um pequeno problema conceitual ou um cálculo simples para ser resolvido nos minutos finais da aula, como: "Se duas barras, uma de cobre e uma de vidro, de mesmo tamanho, forem aquecidas igualmente, qual delas ficará maior? Por quê?".</li>
+                                </ul>
+
+                                <h3>8. Sugestões de Leituras Complementares</h3>
+                                <ul>
+                                    <li>Capítulos sobre Termologia e Dilatação Térmica de livros didáticos de Física.</li>
+                                    <li><i class="bi bi-youtube"></i> Vídeo: <a href="https://youtu.be/UoW2PPicquI?si=IZMo1g0n8PqgwJiV" target="_blank">Anel de Gravesande.</a> </li>
+                                </ul>
+
+                                <h3>9. Referências</h3>
+                                <ul>
+                                    <li>[Indicar o livro didático adotado pela instituição, se houver].</li>
+                                    <li>FERREIRA, M.; FILHO, O. L. S. Proposta de plano de aula para o ensino de física. <strong>Physicae Organum</strong>, v. 5, n. 1, p. 39-44, Brasília, 2019.</li>
+                                </ul>
+
+
+
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="javascript-code" role="tabpanel">
+                            <div class="mt-4">
+                                <h5>Google Colab Notebook</h5>
+                                <p>Acesse o código-fonte clicando no link abaixo:</p>
+
+                                <a href="https://colab.research.google.com/drive/1IAeoToIrs7DUNnzHzgdn3xZIb9yCt2qc?usp=sharing" target="_blank" rel="noopener">
+                                    <img style="width: 200px; height: auto;" src="https://colab.research.google.com/assets/colab-badge.svg" alt="Abrir no Google Colab" />
+                                </a>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="html-code" role="tabpanel">
+                            <div class="mt-3">
+                                <h3>Questão 1</h3>
+                                <p>Durante a aula, vimos exemplos como as juntas de dilatação em pontes e os fios elétricos nos postes. Com base no que você aprendeu e observou na simulação, explique com suas palavras:</p>
+                                <p>a) Por que um engenheiro precisa se preocupar com a dilatação ao construir uma grande ponte de metal?</p>
+                                <p>b) O que aconteceria com os fios de um poste se eles fossem instalados perfeitamente esticados durante um dia muito frio de inverno?</p>
+                                <p><strong>Objetivo da questão:</strong> Verificar se o aluno conseguiu conectar o conceito físico da dilatação com suas aplicações práticas e consequências no mundo real, um dos objetivos complementares da aula.</p>
+
+                                <hr>
+
+                                <h3>Questão 2</h3>
+                                <p>Imagine que temos duas barras, Barra A e Barra B, ambas com 1 metro de comprimento inicial (L₀) e na mesma temperatura de 20°C. A Barra A é feita de <strong>Alumínio (α ≈ 23 x 10⁻⁶ °C⁻¹)</strong> e a Barra B é feita de <strong>Aço (α ≈ 12 x 10⁻⁶ °C⁻¹)</strong>.</p>
+                                <p>Se ambas as barras forem aquecidas até a mesma temperatura final de 120°C, qual delas sofrerá a maior dilatação (ficará mais comprida)? Justifique sua resposta usando os conceitos de <strong>coeficiente de dilatação linear (α)</strong> e a fórmula da dilatação.</p>
+                                <p><strong>Objetivo da questão:</strong> Avaliar se o aluno compreendeu o papel do coeficiente de dilatação (α) como uma propriedade intrínseca do material e sua influência direta no resultado da dilatação, algo que foi explorado na simulação.</p>
+
+                                <hr>
+
+                                <h3>Questão 3</h3>
+                                <p>Uma barra de ferro (considere α = 12 x 10⁻⁶ °C⁻¹) possui 2 metros de comprimento quando está a uma temperatura de 30°C. Ela é então aquecida e passa a ser utilizada em uma estrutura que opera a 80°C.</p>
+                                <p>a) Qual foi a variação de temperatura (ΔT) sofrida pela barra?</p>
+                                <p>b) Usando a fórmula ΔL = L₀ . α . ΔT, calcule a variação no comprimento (ΔL) da barra em metros.</p>
+                                <p>c) Qual será o comprimento final (Lƒ) da barra nessa nova temperatura?</p>
+                                <p><strong>Objetivo da questão:</strong> Verificar se o aluno é capaz de aplicar a fórmula da dilatação linear para resolver um problema quantitativo, identificando corretamente cada variável e realizando os cálculos necessários, consolidando a parte teórica da aula.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+
+{% endblock %}

@@ -18,10 +18,12 @@
 from django.urls import path
 from . import views
 
+app_name = 'simulacoes'
+
 urlpatterns = [
     path("", views.index, name="index"),
-    path("lancamento-projetil/", views.simulacao_projetil, name="simulacao_projetil"),
-    path("api/lancamento-projetil/", views.api_projetil, name="api_projetil"),
-    path("curva-aquecimento/", views.curva_aquecimento, name="curva_aquecimento"),
+    path("simulacao/lancamento-projetil/", views.simulacao_projetil, name="simulacao_projetil"),
+    path("simulacao/curva-aquecimento/", views.curva_aquecimento, name="curva_aquecimento"),
+    path("simulacao/dilatacao-termica/", views.dilatacao_termica, name="dilatacao_termica"),
     # outros paths
 ]

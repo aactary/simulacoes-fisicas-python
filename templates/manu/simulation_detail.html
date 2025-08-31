@@ -1,0 +1,1080 @@
+{% extends 'manu/base.html' %}
+{% load static %}
+
+{% block title %}{{ simulation.title }} - Simulações Físicas com Python{% endblock %}
+
+{% block extra_css %}
+<style>
+    .simulation-controls {
+        position: sticky;
+        top: 120px;
+        z-index: 100;
+    }
+    
+    .parameter-slider {
+        margin-bottom: 1rem;
+    }
+    
+    .parameter-value {
+        font-weight: 600;
+        color: var(--primary-blue);
+    }
+    
+    .simulation-running {
+        border: 2px solid var(--accent-green);
+        box-shadow: 0 0 20px rgba(5, 150, 105, 0.3);
+    }
+    
+    .code-tabs .nav-link {
+        color: var(--gray-600);
+        border: none;
+        background: var(--gray-100);
+        margin-right: 0.25rem;
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+    
+    .code-tabs .nav-link.active {
+        background: var(--gray-900);
+        color: white;
+    }
+    
+    .formula-container {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+        border: 2px solid rgba(37, 99, 235, 0.1);
+        border-radius: 1rem;
+        padding: 2rem;
+        margin: 1rem 0;
+    }
+    
+    .lesson-objective {
+        background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        border-left: 4px solid var(--accent-green);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header da Simulação -->
+<div class="simulation-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb text-white-50">
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'simulacoes:home' %}" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-house me-1"></i>Início
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">
+                            {{ simulation.category }}
+                        </li>
+                    </ol>
+                </nav>
+                <h1 class="display-5 fw-bold mb-3">
+                    <i class="bi bi-{{ simulation.icon }} me-3"></i>
+                    {{ simulation.title|default:"Movimento Retilíneo Uniforme" }}
+                </h1>
+                <p class="lead mb-0">
+                    {{ simulation.description|default:"Explore os conceitos fundamentais do movimento retilíneo uniforme através de simulações interativas e visualizações em tempo real." }}
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <div class="simulation-status bg-white bg-opacity-20 rounded-3 p-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <div class="status-indicator bg-success rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                        <span class="fw-semibold">Simulação Ativa</span>
+                    </div>
+                    <small class="d-block mt-1 opacity-75">
+                        Última atualização: {{ simulation.updated_at|default:"15/01/2024" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row">
+        <!-- Coluna Principal - Simulação e Visualização -->
+        <div class="col-lg-8">
+            <!-- Controles da Simulação -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-sliders"></i>
+                    Parâmetros da Simulação
+                </h3>
+                <div class="parameters-form">
+                    <form id="simulationForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="parameter-slider">
+                                    <label for="velocity" class="form-label d-flex justify-content-between">
+                                        <span>Velocidade Inicial (m/s)</span>
+                                        <span class="parameter-value" id="velocityValue">10</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="velocity" min="0" max="50" value="10" step="0.5">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="parameter-slider">
+                                    <label for="time" class="form-label d-flex justify-content-between">
+                                        <span>Tempo de Simulação (s)</span>
+                                        <span class="parameter-value" id="timeValue">10</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="time" min="1" max="30" value="10" step="0.5">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="parameter-slider">
+                                    <label for="position" class="form-label d-flex justify-content-between">
+                                        <span>Posição Inicial (m)</span>
+                                        <span class="parameter-value" id="positionValue">0</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="position" min="-50" max="50" value="0" step="1">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="parameter-slider">
+                                    <label for="mass" class="form-label d-flex justify-content-between">
+                                        <span>Massa do Objeto (kg)</span>
+                                        <span class="parameter-value" id="massValue">1</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="mass" min="0.1" max="10" value="1" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="d-flex gap-3">
+                                    <button type="button" class="btn btn-simulate" id="startSimulation">
+                                        <i class="bi bi-play-fill me-2"></i>
+                                        Iniciar Simulação
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="pauseSimulation">
+                                        <i class="bi bi-pause-fill me-2"></i>
+                                        Pausar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" id="resetSimulation">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>
+                                        Reiniciar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info" id="exportData">
+                                        <i class="bi bi-download me-2"></i>
+                                        Exportar Dados
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Área de Visualização -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-graph-up"></i>
+                    Visualização da Simulação
+                </h3>
+                <div class="row">
+                    <div class="col-12">
+                        <!-- Animação do Movimento -->
+                        <div class="visualization-area mb-4" id="animationArea">
+                            <div class="text-center">
+                                <i class="bi bi-play-circle fs-1 text-muted mb-3"></i>
+                                <h5 class="text-muted">Clique em "Iniciar Simulação" para visualizar o movimento</h5>
+                                <p class="text-muted">A animação mostrará o objeto em movimento retilíneo uniforme</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <!-- Gráfico Posição x Tempo -->
+                        <div class="chart-container bg-white border rounded-3 p-3 mb-3">
+                            <h6 class="text-center mb-3">Posição × Tempo</h6>
+                            <canvas id="positionChart" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <!-- Gráfico Velocidade x Tempo -->
+                        <div class="chart-container bg-white border rounded-3 p-3 mb-3">
+                            <h6 class="text-center mb-3">Velocidade × Tempo</h6>
+                            <canvas id="velocityChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Dados em Tempo Real -->
+                <div class="real-time-data bg-light rounded-3 p-3">
+                    <h6 class="mb-3">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        Dados em Tempo Real
+                    </h6>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-primary" id="currentTime">0.0</div>
+                                <div class="data-label text-muted">Tempo (s)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-success" id="currentPosition">0.0</div>
+                                <div class="data-label text-muted">Posição (m)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-info" id="currentVelocity">0.0</div>
+                                <div class="data-label text-muted">Velocidade (m/s)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-warning" id="currentDistance">0.0</div>
+                                <div class="data-label text-muted">Distância (m)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fórmulas Matemáticas -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-calculator"></i>
+                    Fórmulas Matemáticas
+                </h3>
+                <div class="formula-container">
+                    <h5 class="text-center mb-4 text-primary">Movimento Retilíneo Uniforme</h5>
+                    
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Função Horária da Posição</h6>
+                                <div class="formula-math text-center">
+                                    $$S = S_0 + v \cdot t$$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: S = posição final, S₀ = posição inicial, v = velocidade, t = tempo
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Velocidade Média</h6>
+                                <div class="formula-math text-center">
+                                    $$v_m = \frac{\Delta S}{\Delta t} = \frac{S_f - S_i}{t_f - t_i}$$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: v_m = velocidade média, ΔS = variação da posição, Δt = variação do tempo
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Distância Percorrida</h6>
+                                <div class="formula-math text-center">
+                                    $$d = |v| \cdot t$$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: d = distância percorrida, |v| = módulo da velocidade, t = tempo
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Condição para MRU</h6>
+                                <div class="formula-math text-center">
+                                    $$a = 0 \Rightarrow v = \text{constante}$$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    No MRU, a aceleração é zero e a velocidade permanece constante
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Código da Aplicação -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-code-slash"></i>
+                    Código da Simulação
+                </h3>
+                <div class="code-section">
+                    <ul class="nav nav-tabs code-tabs" id="codeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="python-tab" data-bs-toggle="tab" data-bs-target="#python-code" type="button" role="tab">
+                                <i class="bi bi-file-code me-1"></i>
+                                Python
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="javascript-tab" data-bs-toggle="tab" data-bs-target="#javascript-code" type="button" role="tab">
+                                <i class="bi bi-filetype-js me-1"></i>
+                                JavaScript
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="html-tab" data-bs-toggle="tab" data-bs-target="#html-code" type="button" role="tab">
+                                <i class="bi bi-filetype-html me-1"></i>
+                                HTML/CSS
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="codeTabsContent">
+                        <div class="tab-pane fade show active" id="python-code" role="tabpanel">
+                            <div class="code-block">
+<pre><code class="language-python"># Simulação de Movimento Retilíneo Uniforme
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+class MovimentoRetilineo:
+    def __init__(self, posicao_inicial=0, velocidade=10, tempo_total=10):
+        """
+        Inicializa a simulação do movimento retilíneo uniforme
+        
+        Args:
+            posicao_inicial (float): Posição inicial do objeto (m)
+            velocidade (float): Velocidade constante do objeto (m/s)
+            tempo_total (float): Tempo total da simulação (s)
+        """
+        self.s0 = posicao_inicial
+        self.v = velocidade
+        self.t_total = tempo_total
+        self.dt = 0.1  # Intervalo de tempo para cálculos
+        
+        # Arrays para armazenar dados
+        self.tempos = np.arange(0, tempo_total + self.dt, self.dt)
+        self.posicoes = self.calcular_posicoes()
+        self.velocidades = np.full_like(self.tempos, velocidade)
+    
+    def calcular_posicoes(self):
+        """Calcula as posições usando a função horária S = S0 + v*t"""
+        return self.s0 + self.v * self.tempos
+    
+    def posicao_no_tempo(self, t):
+        """Retorna a posição em um tempo específico"""
+        return self.s0 + self.v * t
+    
+    def distancia_percorrida(self, t):
+        """Calcula a distância percorrida até o tempo t"""
+        return abs(self.v) * t
+    
+    def gerar_dados_simulacao(self):
+        """Gera dados para visualização"""
+        return {
+            'tempo': self.tempos,
+            'posicao': self.posicoes,
+            'velocidade': self.velocidades,
+            'distancia': [self.distancia_percorrida(t) for t in self.tempos]
+        }
+    
+    def plotar_graficos(self):
+        """Cria gráficos da simulação"""
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+        
+        # Gráfico Posição x Tempo
+        ax1.plot(self.tempos, self.posicoes, 'b-', linewidth=2, label='Posição')
+        ax1.set_xlabel('Tempo (s)')
+        ax1.set_ylabel('Posição (m)')
+        ax1.set_title('Posição × Tempo')
+        ax1.grid(True, alpha=0.3)
+        ax1.legend()
+        
+        # Gráfico Velocidade x Tempo
+        ax2.plot(self.tempos, self.velocidades, 'r-', linewidth=2, label='Velocidade')
+        ax2.set_xlabel('Tempo (s)')
+        ax2.set_ylabel('Velocidade (m/s)')
+        ax2.set_title('Velocidade × Tempo')
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+        
+        plt.tight_layout()
+        return fig
+
+# Exemplo de uso
+if __name__ == "__main__":
+    # Criar simulação
+    simulacao = MovimentoRetilineo(
+        posicao_inicial=0,
+        velocidade=15,
+        tempo_total=10
+    )
+    
+    # Gerar dados
+    dados = simulacao.gerar_dados_simulacao()
+    
+    # Exibir alguns resultados
+    print(f"Posição inicial: {simulacao.s0} m")
+    print(f"Velocidade: {simulacao.v} m/s")
+    print(f"Posição final: {simulacao.posicao_no_tempo(10):.2f} m")
+    print(f"Distância percorrida: {simulacao.distancia_percorrida(10):.2f} m")
+</code></pre>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="javascript-code" role="tabpanel">
+                            <div class="code-block">
+<pre><code class="language-javascript">// Classe para simulação de Movimento Retilíneo Uniforme
+class MovimentoRetilineo {
+    constructor(posicaoInicial = 0, velocidade = 10, tempoTotal = 10) {
+        this.s0 = posicaoInicial;
+        this.v = velocidade;
+        this.tempoTotal = tempoTotal;
+        this.dt = 0.1; // Intervalo de tempo
+        
+        this.isRunning = false;
+        this.currentTime = 0;
+        this.animationId = null;
+        
+        // Dados para gráficos
+        this.dadosTempo = [];
+        this.dadosPosicao = [];
+        this.dadosVelocidade = [];
+    }
+    
+    // Função horária da posição: S = S0 + v*t
+    calcularPosicao(t) {
+        return this.s0 + this.v * t;
+    }
+    
+    // Distância percorrida
+    calcularDistancia(t) {
+        return Math.abs(this.v) * t;
+    }
+    
+    // Iniciar simulação
+    iniciar() {
+        this.isRunning = true;
+        this.currentTime = 0;
+        this.dadosTempo = [];
+        this.dadosPosicao = [];
+        this.dadosVelocidade = [];
+        
+        this.loop();
+    }
+    
+    // Loop principal da simulação
+    loop() {
+        if (!this.isRunning || this.currentTime >= this.tempoTotal) {
+            this.parar();
+            return;
+        }
+        
+        // Calcular valores atuais
+        const posicaoAtual = this.calcularPosicao(this.currentTime);
+        const distanciaAtual = this.calcularDistancia(this.currentTime);
+        
+        // Armazenar dados
+        this.dadosTempo.push(this.currentTime);
+        this.dadosPosicao.push(posicaoAtual);
+        this.dadosVelocidade.push(this.v);
+        
+        // Atualizar interface
+        this.atualizarInterface(posicaoAtual, distanciaAtual);
+        this.atualizarGraficos();
+        this.atualizarAnimacao(posicaoAtual);
+        
+        // Próximo frame
+        this.currentTime += this.dt;
+        this.animationId = requestAnimationFrame(() => this.loop());
+    }
+    
+    // Parar simulação
+    parar() {
+        this.isRunning = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+    }
+    
+    // Reiniciar simulação
+    reiniciar() {
+        this.parar();
+        this.currentTime = 0;
+        this.atualizarInterface(this.s0, 0);
+        this.limparGraficos();
+    }
+    
+    // Atualizar dados em tempo real na interface
+    atualizarInterface(posicao, distancia) {
+        document.getElementById('currentTime').textContent = this.currentTime.toFixed(1);
+        document.getElementById('currentPosition').textContent = posicao.toFixed(1);
+        document.getElementById('currentVelocity').textContent = this.v.toFixed(1);
+        document.getElementById('currentDistance').textContent = distancia.toFixed(1);
+    }
+    
+    // Atualizar animação visual
+    atualizarAnimacao(posicao) {
+        const animationArea = document.getElementById('animationArea');
+        
+        // Criar ou atualizar objeto em movimento
+        let objeto = document.getElementById('objetoMovimento');
+        if (!objeto) {
+            objeto = document.createElement('div');
+            objeto.id = 'objetoMovimento';
+            objeto.style.cssText = `
+                position: absolute;
+                width: 20px;
+                height: 20px;
+                background: #2563eb;
+                border-radius: 50%;
+                top: 50%;
+                transform: translateY(-50%);
+                transition: left 0.1s linear;
+            `;
+            animationArea.appendChild(objeto);
+        }
+        
+        // Calcular posição na tela (normalizada)
+        const maxPosicao = Math.max(...this.dadosPosicao, this.s0 + this.v * this.tempoTotal);
+        const minPosicao = Math.min(...this.dadosPosicao, this.s0);
+        const range = maxPosicao - minPosicao || 1;
+        const posicaoNormalizada = (posicao - minPosicao) / range;
+        const posicaoPixel = posicaoNormalizada * (animationArea.clientWidth - 40) + 20;
+        
+        objeto.style.left = posicaoPixel + 'px';
+    }
+    
+    // Atualizar gráficos
+    atualizarGraficos() {
+        // Atualizar gráfico de posição
+        if (window.positionChart) {
+            window.positionChart.data.labels = this.dadosTempo.map(t => t.toFixed(1));
+            window.positionChart.data.datasets[0].data = this.dadosPosicao;
+            window.positionChart.update('none');
+        }
+        
+        // Atualizar gráfico de velocidade
+        if (window.velocityChart) {
+            window.velocityChart.data.labels = this.dadosTempo.map(t => t.toFixed(1));
+            window.velocityChart.data.datasets[0].data = this.dadosVelocidade;
+            window.velocityChart.update('none');
+        }
+    }
+    
+    // Limpar gráficos
+    limparGraficos() {
+        if (window.positionChart) {
+            window.positionChart.data.labels = [];
+            window.positionChart.data.datasets[0].data = [];
+            window.positionChart.update();
+        }
+        
+        if (window.velocityChart) {
+            window.velocityChart.data.labels = [];
+            window.velocityChart.data.datasets[0].data = [];
+            window.velocityChart.update();
+        }
+    }
+}
+
+// Instância global da simulação
+let simulacao = new MovimentoRetilineo();
+</code></pre>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="html-code" role="tabpanel">
+                            <div class="code-block">
+<pre><code class="language-html">&lt;!-- Estrutura HTML para a simulação --&gt;
+&lt;div class="simulation-container"&gt;
+    &lt;!-- Controles de parâmetros --&gt;
+    &lt;div class="parameters-form"&gt;
+        &lt;div class="parameter-slider"&gt;
+            &lt;label for="velocity"&gt;Velocidade Inicial (m/s)&lt;/label&gt;
+            &lt;input type="range" id="velocity" min="0" max="50" value="10" step="0.5"&gt;
+            &lt;span class="parameter-value"&gt;10&lt;/span&gt;
+        &lt;/div&gt;
+        
+        &lt;button id="startSimulation" class="btn btn-simulate"&gt;
+            Iniciar Simulação
+        &lt;/button&gt;
+    &lt;/div&gt;
+    
+    &lt;!-- Área de visualização --&gt;
+    &lt;div class="visualization-area" id="animationArea"&gt;
+        &lt;!-- Objeto em movimento será inserido aqui via JavaScript --&gt;
+    &lt;/div&gt;
+    
+    &lt;!-- Gráficos --&gt;
+    &lt;div class="charts-container"&gt;
+        &lt;canvas id="positionChart"&gt;&lt;/canvas&gt;
+        &lt;canvas id="velocityChart"&gt;&lt;/canvas&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;style&gt;
+/* CSS para a simulação */
+.simulation-container {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.parameters-form {
+    background: #f9fafb;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+}
+
+.parameter-slider {
+    margin-bottom: 1rem;
+}
+
+.parameter-slider label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.parameter-value {
+    color: #2563eb;
+    font-weight: 600;
+}
+
+.form-range {
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.btn-simulate {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border: none;
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 2rem;
+    border-radius: 0.5rem;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-simulate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.visualization-area {
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 0.75rem;
+    min-height: 400px;
+    position: relative;
+    margin: 1.5rem 0;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+}
+&lt;/style&gt;
+</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Lateral - Planos de Aula e Recursos -->
+        <div class="col-lg-4">
+            <div class="simulation-controls">
+                <!-- Planos de Aula -->
+                <div class="simulation-section mb-4">
+                    <h3>
+                        <i class="bi bi-book"></i>
+                        Planos de Aula
+                    </h3>
+                    
+                    <div class="lesson-objective">
+                        <h5 class="text-success mb-2">
+                            <i class="bi bi-target me-2"></i>
+                            Objetivos de Aprendizagem
+                        </h5>
+                        <ul class="list-unstyled mb-0">
+                            <li><i class="bi bi-check-circle me-2 text-success"></i>Compreender o conceito de MRU</li>
+                            <li><i class="bi bi-check-circle me-2 text-success"></i>Aplicar a função horária da posição</li>
+                            <li><i class="bi bi-check-circle me-2 text-success"></i>Interpretar gráficos de movimento</li>
+                            <li><i class="bi bi-check-circle me-2 text-success"></i>Relacionar teoria e prática</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="lesson-plan">
+                        <h4>Roteiro de Laboratório</h4>
+                        
+                        <div class="lesson-step mb-3">
+                            <h6 class="text-primary">
+                                <span class="badge bg-primary me-2">1</span>
+                                Introdução Teórica (15 min)
+                            </h6>
+                            <ul>
+                                <li>Conceitos fundamentais do MRU</li>
+                                <li>Função horária da posição</li>
+                                <li>Características do movimento uniforme</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="lesson-step mb-3">
+                            <h6 class="text-primary">
+                                <span class="badge bg-primary me-2">2</span>
+                                Exploração da Simulação (20 min)
+                            </h6>
+                            <ul>
+                                <li>Familiarização com os controles</li>
+                                <li>Teste com diferentes parâmetros</li>
+                                <li>Observação dos gráficos gerados</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="lesson-step mb-3">
+                            <h6 class="text-primary">
+                                <span class="badge bg-primary me-2">3</span>
+                                Atividades Práticas (25 min)
+                            </h6>
+                            <ul>
+                                <li>Exercício 1: Velocidade constante</li>
+                                <li>Exercício 2: Diferentes posições iniciais</li>
+                                <li>Exercício 3: Análise de gráficos</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="lesson-step mb-3">
+                            <h6 class="text-primary">
+                                <span class="badge bg-primary me-2">4</span>
+                                Discussão e Conclusões (10 min)
+                            </h6>
+                            <ul>
+                                <li>Análise dos resultados obtidos</li>
+                                <li>Relação com situações do cotidiano</li>
+                                <li>Dúvidas e esclarecimentos</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="#" class="btn btn-outline-primary btn-sm me-2">
+                            <i class="bi bi-download me-1"></i>
+                            Baixar PDF
+                        </a>
+                        <a href="#" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-printer me-1"></i>
+                            Imprimir
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Recursos Adicionais -->
+                <div class="simulation-section mb-4">
+                    <h3>
+                        <i class="bi bi-collection"></i>
+                        Recursos Adicionais
+                    </h3>
+                    
+                    <div class="resource-list">
+                        <div class="resource-item d-flex align-items-center p-2 rounded mb-2 bg-light">
+                            <i class="bi bi-file-pdf text-danger me-3 fs-5"></i>
+                            <div>
+                                <h6 class="mb-0">Lista de Exercícios</h6>
+                                <small class="text-muted">10 problemas resolvidos</small>
+                            </div>
+                        </div>
+                        
+                        <div class="resource-item d-flex align-items-center p-2 rounded mb-2 bg-light">
+                            <i class="bi bi-play-circle text-primary me-3 fs-5"></i>
+                            <div>
+                                <h6 class="mb-0">Vídeo Explicativo</h6>
+                                <small class="text-muted">Conceitos fundamentais</small>
+                            </div>
+                        </div>
+                        
+                        <div class="resource-item d-flex align-items-center p-2 rounded mb-2 bg-light">
+                            <i class="bi bi-code-slash text-success me-3 fs-5"></i>
+                            <div>
+                                <h6 class="mb-0">Código Fonte</h6>
+                                <small class="text-muted">GitHub repository</small>
+                            </div>
+                        </div>
+                        
+                        <div class="resource-item d-flex align-items-center p-2 rounded mb-2 bg-light">
+                            <i class="bi bi-question-circle text-info me-3 fs-5"></i>
+                            <div>
+                                <h6 class="mb-0">Quiz Interativo</h6>
+                                <small class="text-muted">Teste seus conhecimentos</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulações Relacionadas -->
+                <div class="simulation-section">
+                    <h3>
+                        <i class="bi bi-link-45deg"></i>
+                        Simulações Relacionadas
+                    </h3>
+                    
+                    <div class="related-simulations">
+                        <a href="#" class="related-item d-block p-3 rounded bg-light text-decoration-none mb-2">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-arrow-up-right text-primary me-3 fs-5"></i>
+                                <div>
+                                    <h6 class="mb-0 text-dark">Movimento Uniformemente Variado</h6>
+                                    <small class="text-muted">Próximo nível de complexidade</small>
+                                </div>
+                            </div>
+                        </a>
+                        
+                        <a href="#" class="related-item d-block p-3 rounded bg-light text-decoration-none mb-2">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-graph-up text-success me-3 fs-5"></i>
+                                <div>
+                                    <h6 class="mb-0 text-dark">Análise Gráfica do Movimento</h6>
+                                    <small class="text-muted">Interpretação de gráficos</small>
+                                </div>
+                            </div>
+                        </a>
+                        
+                        <a href="#" class="related-item d-block p-3 rounded bg-light text-decoration-none">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-speedometer text-warning me-3 fs-5"></i>
+                                <div>
+                                    <h6 class="mb-0 text-dark">Velocidade e Aceleração</h6>
+                                    <small class="text-muted">Conceitos fundamentais</small>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variáveis globais para gráficos
+let positionChart, velocityChart;
+
+// Inicialização quando a página carrega
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    initializeControls();
+    initializeSimulation();
+});
+
+// Inicializar gráficos
+function initializeCharts() {
+    // Gráfico de Posição
+    const posCtx = document.getElementById('positionChart').getContext('2d');
+    positionChart = new Chart(posCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Posição (m)',
+                data: [],
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Tempo (s)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Posição (m)'
+                    }
+                }
+            }
+        }
+    });
+
+    // Gráfico de Velocidade
+    const velCtx = document.getElementById('velocityChart').getContext('2d');
+    velocityChart = new Chart(velCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Velocidade (m/s)',
+                data: [],
+                borderColor: '#059669',
+                backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Tempo (s)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Velocidade (m/s)'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Armazenar referências globais
+    window.positionChart = positionChart;
+    window.velocityChart = velocityChart;
+}
+
+// Inicializar controles
+function initializeControls() {
+    // Sliders de parâmetros
+    const sliders = ['velocity', 'time', 'position', 'mass'];
+    
+    sliders.forEach(sliderId => {
+        const slider = document.getElementById(sliderId);
+        const valueDisplay = document.getElementById(sliderId + 'Value');
+        
+        slider.addEventListener('input', function() {
+            valueDisplay.textContent = this.value;
+            updateSimulationParameters();
+        });
+    });
+    
+    // Botões de controle
+    document.getElementById('startSimulation').addEventListener('click', startSimulation);
+    document.getElementById('pauseSimulation').addEventListener('click', pauseSimulation);
+    document.getElementById('resetSimulation').addEventListener('click', resetSimulation);
+    document.getElementById('exportData').addEventListener('click', exportData);
+}
+
+// Inicializar simulação
+function initializeSimulation() {
+    const velocity = parseFloat(document.getElementById('velocity').value);
+    const position = parseFloat(document.getElementById('position').value);
+    const time = parseFloat(document.getElementById('time').value);
+    
+    simulacao = new MovimentoRetilineo(position, velocity, time);
+}
+
+// Atualizar parâmetros da simulação
+function updateSimulationParameters() {
+    const velocity = parseFloat(document.getElementById('velocity').value);
+    const position = parseFloat(document.getElementById('position').value);
+    const time = parseFloat(document.getElementById('time').value);
+    
+    simulacao = new MovimentoRetilineo(position, velocity, time);
+}
+
+// Iniciar simulação
+function startSimulation() {
+    const animationArea = document.getElementById('animationArea');
+    animationArea.classList.add('simulation-running');
+    animationArea.innerHTML = '<div style="position: relative; height: 100%; background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%);"></div>';
+    
+    simulacao.iniciar();
+    
+    // Atualizar botões
+    document.getElementById('startSimulation').disabled = true;
+    document.getElementById('pauseSimulation').disabled = false;
+}
+
+// Pausar simulação
+function pauseSimulation() {
+    simulacao.parar();
+    document.getElementById('startSimulation').disabled = false;
+    document.getElementById('pauseSimulation').disabled = true;
+}
+
+// Reiniciar simulação
+function resetSimulation() {
+    simulacao.reiniciar();
+    
+    const animationArea = document.getElementById('animationArea');
+    animationArea.classList.remove('simulation-running');
+    animationArea.innerHTML = `
+        <div class="text-center">
+            <i class="bi bi-play-circle fs-1 text-muted mb-3"></i>
+            <h5 class="text-muted">Clique em "Iniciar Simulação" para visualizar o movimento</h5>
+            <p class="text-muted">A animação mostrará o objeto em movimento retilíneo uniforme</p>
+        </div>
+    `;
+    
+    // Atualizar botões
+    document.getElementById('startSimulation').disabled = false;
+    document.getElementById('pauseSimulation').disabled = true;
+}
+
+// Exportar dados
+function exportData() {
+    if (simulacao.dadosTempo.length === 0) {
+        alert('Execute a simulação primeiro para gerar dados!');
+        return;
+    }
+    
+    const dados = {
+        parametros: {
+            posicaoInicial: simulacao.s0,
+            velocidade: simulacao.v,
+            tempoTotal: simulacao.tempoTotal
+        },
+        resultados: {
+            tempo: simulacao.dadosTempo,
+            posicao: simulacao.dadosPosicao,
+            velocidade: simulacao.dadosVelocidade
+        }
+    };
+    
+    const dataStr = JSON.stringify(dados, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = 'simulacao_mru_dados.json';
+    link.click();
+}
+</script>
+{% endblock %}

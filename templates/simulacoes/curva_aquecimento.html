@@ -1,184 +1,286 @@
-{% extends 'big_one/page.html' %}
-
+{% extends 'manu/base.html' %}
 {% load static %}
 
-{% block title %}
-PIBID | Simulações Físicas
-{% endblock %}
+{% block title %}{{ simulation.title }} - Simulações Físicas com Python{% endblock %}
 
-{% block style %}
-<script>
-  MathJax = {
-    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
-    svg: { fontCache: 'global' }
-  };
-</script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
+{% block extra_css %}
 <style>
-    .simulacao-section {
-        padding: 60px 0;
+    .simulation-controls {
+        position: sticky;
+        top: 120px;
+        z-index: 100;
     }
-
-    .grafico-box {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        padding: 20px;
-        min-height: 300px;
-        text-align: center;
+    
+    .parameter-slider {
+        margin-bottom: 1rem;
+    }
+    
+    .parameter-value {
+        font-weight: 600;
+        color: var(--primary-blue);
+    }
+    
+    .simulation-running {
+        border: 2px solid var(--accent-green);
+        box-shadow: 0 0 20px rgba(5, 150, 105, 0.3);
+    }
+    
+    .code-tabs .nav-link {
+        color: var(--gray-600);
+        border: none;
+        background: var(--gray-100);
+        margin-right: 0.25rem;
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+    
+    .code-tabs .nav-link.active {
+        background: var(--gray-900);
+        color: white;
+    }
+    
+    .formula-container {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+        border: 2px solid rgba(37, 99, 235, 0.1);
+        border-radius: 1rem;
+        padding: 2rem;
+        margin: 1rem 0;
+    }
+    
+    .lesson-objective {
+        background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        border-left: 4px solid var(--accent-green);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 0.5rem 0.5rem 0;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<!-- Seção principal -->
-<section class="simulacao-section">
+<!-- Header da Simulação -->
+<div class="simulation-header">
     <div class="container">
-        <h2 class="mb-4 text-center">{{ titulo_simulacao|default:"Simulação: Curva de Aquecimento da Água" }}</h2>
+        <div class="row align-items-center">
+            <div class="col-lg">
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb text-white-50">
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'simulacoes:index' %}" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-house me-1"></i>Início
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">
+                            {{ simulation.category|default:"Mecânica" }}
+                        </li>
+                    </ol>
+                </nav>
+                <h1 class="display-5 fw-bold mb-3">
+                    <i class="bi bi-{{ simulation.icon }} me-3"></i>
+                    {{ simulation.title|default:"" }}
+                </h1>
+                <p class="lead mb-0">
+                    {{ simulation.description|default:"" }}
+                </p>
+            </div>
+            <!-- <div class="col-lg-4 text-lg-end">
+                <div class="simulation-status bg-dark bg-opacity-20 rounded-3 p-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <div class="status-indicator bg-success rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                        <span class="fw-semibold">Simulação Ativa</span>
+                    </div>
+                    <small class="d-block mt-1 opacity-75">
+                        Última atualização: {{ simulation.updated_at|default:"15/01/2024" }}
+                    </small>
+                </div>
+            </div> -->
+        </div>
+    </div>
+</div>
 
-        <div class="row">
-            <!-- Formulário -->
-            <div class="col-md mb-2">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">Insira os parâmetros</h5>
-                        <form method="get" class="row g-3">
-                            {% csrf_token %}
-                            <div class="col-md-4">
+<div class="container py-5">
+    <div class="row">
+        <!-- Coluna Principal - Simulação e Visualização -->
+        <div class="col-lg">
+            <!-- Controles da Simulação -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-sliders"></i>
+                    Parâmetros da Simulação
+                </h3>
+                <div class="parameters-form">
+                    
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="row">
+                            <div class="col-md">
                                 <label for="massa" class="form-label">Massa da água (g)</label>
                                 <input type="number" class="form-control" id="massa" name="massa" step="10" value="{{ massa }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md">
                                 <label for="temp_inicial" class="form-label">Temperatura Inicial (°C)</label>
                                 <input type="number" class="form-control" id="temp_inicial" name="temp_inicial" step="1" value="{{ temp_inicial }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md">
                                 <label for="temp_final" class="form-label">Temperatura Final (°C)</label>
                                 <input type="number" class="form-control" id="temp_final" name="temp_final" step="1" value="{{ temp_final }}">
                             </div>
+                        </div>
+
+                        <div class="row mt-3">
                             <div class="col-12">
-                                <button type="submit" class="btn btn-primary">Simular Aquecimento</button>
+                                <div class="d-flex gap-3">
+                                    <button type="submit" class="btn btn-simulate" id="startSimulation">
+                                        <i class="bi bi-play-fill me-2"></i>
+                                        Iniciar Simulação
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" disabled id="pauseSimulation">
+                                        <i class="bi bi-pause-fill me-2"></i>
+                                        Pausar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" disabled id="resetSimulation">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>
+                                        Reiniciar
+                                    </button>
+                                </div>
                             </div>
-                        </form>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Área de Visualização -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-graph-up"></i>
+                    Visualização da Simulação
+                </h3>
+                <div class="row">
+                    <div class="col-12">
+                        <!-- Animação do Movimento -->
+                        <div class="visualization-area mb-4" id="animationArea">
+                            {% if imagem_grafico %}
+                            <!-- {{imagem_grafico|safe}} -->
+                            <img src="data:image/png;base64,{{ imagem_grafico }}" alt="Gráfico da Curva de Aquecimento" class="img-fluid rounded shadow">
+                            {% else %}
+                            <div class="text-center">
+                                <i class="bi bi-play-circle fs-1 text-muted mb-3"></i>
+                                <h5 class="text-muted">Clique em "Iniciar Simulação" para visualizar o movimento</h5>
+                                <p class="text-muted">A animação mostrará o objeto em movimento retilíneo uniforme</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                
+                <!-- Dados em Tempo Real -->
+                <div class="real-time-data bg-light rounded-3 p-3">
+                    <h6 class="mb-3">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        Dados da Simulação
+                    </h6>
+                    <div class="row text-center">
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-primary" id="currentTime">{{massa}} g</div>
+                                <div class="data-label text-muted">Massa</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-success" id="currentPosition">{{temp_inicial}} ºC</div>
+                                <div class="data-label text-muted">Temperatura Inicial</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-danger" id="currentVelocity">{{temp_final}} ºC</div>
+                                <div class="data-label text-muted">Temperatura Final</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-warning" id="currentDistance">{{energia_total}} J</div>
+                                <div class="data-label text-muted">Energia Total</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="row">
-            <!-- Área da Simulação/Gráfico -->
-            <div class="col-md">
-                <div class="grafico-box">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th colspan="4">Resultado da Simulação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <th>Massa</th>
-                                <th>Temperatura Inicial</th>
-                                <th>Temperatura Final</th>
-                                <th>Energia Total</th>
-                            </tr>
-                            <tr>
-                                <td>{{massa}} $g$</td>
-                                <td>{{ temp_inicial }} °C</td>
-                                <td>{{ temp_final }} °C</td>
-                                <td>{{energia_total}} $J$</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <!-- <h2 class="mb-4">Resultado da Simulação</h2>
-                    <p><strong>Massa:</strong> {{ massa }} g</p>
-                    <p><strong>Temperatura Inicial:</strong> {{ temp_inicial }} °C</p>
-                    <p><strong>Temperatura Final:</strong> {{ temp_final }} °C</p> -->
 
-                    <div class="text-center">
-                        <img src="data:image/png;base64,{{ imagem_grafico }}" alt="Gráfico da Curva de Aquecimento" class="img-fluid rounded shadow">
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
-        <!-- Descrição opcional da simulação -->
-        <!-- <div class="mt-4">
-            <h5>Descrição:</h5>
-            <p>{{ descricao_simulacao|default:"Esta simulação permite visualizar o comportamento de um sistema físico com base nos parâmetros inseridos." }}</p>
-        </div> -->
-
-        <div class="row">
-            <div class="col-md mt-2">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light border-bottom">
-                        <ul class="nav nav-tabs card-header-tabs" id="simulacaoTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="formulas-tab" data-bs-toggle="tab"
-                                    data-bs-target="#formulas" type="button" role="tab" aria-controls="formulas"
-                                    aria-selected="true">Fórmulas</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="roteiro-tab" data-bs-toggle="tab" data-bs-target="#roteiro"
-                                    type="button" role="tab" aria-controls="roteiro" aria-selected="false">
-                                    Sugestão: Plano de Aula
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="codigo-tab" data-bs-toggle="tab" data-bs-target="#codigo"
-                                    type="button" role="tab" aria-controls="codigo" aria-selected="false">Código
-                                    Fonte</button>
-                            </li>
-                        </ul>
+            <!-- Fórmulas Matemáticas -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-calculator"></i>
+                    Fórmulas Matemáticas
+                </h3>
+                <div class="formula-container">
+                    <!-- <h5 class="text-center mb-4 text-primary">Movimento Retilíneo Uniforme</h5> -->
+                    
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Calor Sensível $Q$</h6>
+                                <div class="formula-math text-center">
+                                    $$ Q = m \cdot c \cdot \Delta T $$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: <br>
+                                    $Q$ = Calor Sensível $(J)$ <br>
+                                    $m$ massa $(g)$, $c$ = calor específico $(J/ºC)$ <br>
+                                    $\Delta T$ = variação de temperatura $(ºC)$
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Alcance $R$</h6>
+                                <div class="formula-math text-center">
+                                    $$Q = m \cdot L $$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: <br>
+                                    $Q$ = Calor Sensível $(J)$ <br>
+                                    $m$ massa $(g)$ <br>
+                                    $L$ = calor latente específico $(J/g)$
+                                </small>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="card-body">
-                        <div class="tab-content" id="simulacaoTabsContent">
-                            <!-- Fórmulas -->
-                            <div class="tab-pane fade show active" id="formulas" role="tabpanel" aria-labelledby="formulas-tab">
-                                <h5>Calor sensível: $$ \boxed{Q = m \cdot c \cdot \Delta T}$$</h5>
-                                <p>
-                                    Onde: <br>
-                                    $Q$: calor sensível $(J)$ <br>
-                                    $m$: massa $(g)$ <br>
-                                    $c$: calor específico $(J / g \cdot ^\circ C)$ <br>
-                                    $\Delta T$: variação de temperatura $(^\circ C)$
-                                </p>
-                                <h5>Calor latente: $$\boxed{Q = m \cdot L}$$</h5>
-                                <p>
-                                    Onde: <br>
-                                    $Q$: calor sensível $(J)$ <br>
-                                    $m$: massa $(g)$ <br>
-                                    $L$: calor latente específico $(J/g)$
-                                </p>
-                                <h5>Valores usados na simulação</h5>
-                                <ul>
-                                    <li>Calor específico do gelo: $c = 2{,}1 \ \text{J/g} \cdot ^\circ C$</li>
-                                    <li>Calor específico da água líquida: $c = 4{,}18 \ \text{J/g} \cdot ^\circ C$</li>
-                                    <li>Calor específico do vapor: $c = 2{,}0 \ \text{J/g} \cdot ^\circ C$</li>
-                                    <li>Calor latente de fusão: $L_f = 334 \ \text{J/g}$</li>
-                                    <li>Calor latente de vaporização: $L_v = 2260 \ \text{J/g}$</li>
-                                </ul>
+                </div>
+            </div>
 
-                                <hr>
-
-                            <h5>Exercício:</h5>
-                            <p>Determine a quantidade de calor necessária para transformar $20 g$ de gelo à $-30^\circ C$ em $20 g$ de vapor d’água à $120^\circ C$.</p>
-                            <p>
-                                Dados: <br>
-                                Calor específico do gelo: $0,5 cal/g \cdot^\circ C$ <br>
-                                Calor latente de fusão: $80 cal/g$ <br>
-                                Calor específico da água: $1,0 cal/g \cdot^\circ C$ <br>
-                                Calor latente de vaporização: $540 cal/g$ <br>
-                                Calor específico do vapor d'água: $0,5 cal/g \cdot^\circ C$ 
-                            </p>
-                            <p>Faça os calculos em calorias e no final converta para Joules $(1 cal = 4,18 J)$ e verifique no gráfico os resultados.</p>
-
-                            </div>
-
-                            <!-- Roteiro de Aula -->
-                            <div class="tab-pane fade" id="roteiro" role="tabpanel" aria-labelledby="roteiro-tab">
+            <!-- Código da Aplicação -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-code-slash"></i>
+                    Anexos
+                </h3>
+                <div class="code-section">
+                    <ul class="nav nav-tabs" id="codeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="python-tab" data-bs-toggle="tab" data-bs-target="#python-code" type="button" role="tab">
+                                <i class="bi bi-file-code me-1"></i>
+                                Plano de Aula
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="javascript-tab" data-bs-toggle="tab" data-bs-target="#javascript-code" type="button" role="tab">
+                                <i class="bi bi-filetype-py me-1"></i>
+                                Código Fonte
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="html-tab" data-bs-toggle="tab" data-bs-target="#html-code" type="button" role="tab">
+                                <i class="bi bi-filetype-html me-1"></i>
+                                Exercícios
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="codeTabsContent">
+                        <div class="tab-pane fade show active" id="python-code" role="tabpanel">
+                            <div class="mt-4">
+                                <!--  -->
                                 <h4><i class="bi bi-pin-angle-fill"></i> Proposta de Plano de Aula: Curva de Aquecimento da Água</h4>
 
                                 <h5>1. Identificação:</h5>
@@ -290,9 +392,9 @@ PIBID | Simulações Físicas
                                     <li>HALLIDAY, David; RESNICK, Robert; WALKER, Jearl. Fundamentos de Física – Volume 2: Termodinâmica. 8. ed. – Rio de Janeiro: LTC, 2011.</li>
                                 </ul>
                             </div>
-
-                            <!-- Código Fonte -->
-                            <div class="tab-pane fade" id="codigo" role="tabpanel" aria-labelledby="codigo-tab">
+                        </div>
+                        <div class="tab-pane fade" id="javascript-code" role="tabpanel">
+                            <div class="mt-4">
                                 <h5>Google Colab Notebook</h5>
                                 <p>Acesse o código-fonte clicando no link abaixo:</p>
 
@@ -301,64 +403,31 @@ PIBID | Simulações Físicas
                                 </a>
                             </div>
                         </div>
+                        <div class="tab-pane fade" id="html-code" role="tabpanel">
+                            <div class="mt-4">
+                                <h5>Exercício:</h5>
+                                <p>Determine a quantidade de calor necessária para transformar $20 g$ de gelo à $-30^\circ C$ em $20 g$ de vapor d’água à $120^\circ C$.</p>
+                                <p>
+                                    Dados: <br>
+                                    Calor específico do gelo: $0,5 cal/g \cdot^\circ C$ <br>
+                                    Calor latente de fusão: $80 cal/g$ <br>
+                                    Calor específico da água: $1,0 cal/g \cdot^\circ C$ <br>
+                                    Calor latente de vaporização: $540 cal/g$ <br>
+                                    Calor específico do vapor d'água: $0,5 cal/g \cdot^\circ C$ 
+                                </p>
+                                <p>Faça os calculos em calorias e no final converta para Joules $(1 cal = 4,18 J)$ e verifique no gráfico os resultados.</p>
+
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
     </div>
-</section>
-
+</div>
 {% endblock %}
 
-{% block script %}
-<script src="https://code.jquery.com/jquery-3.6.4.min.js"
-    integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/js/selectize.min.js"
-    integrity="sha512-IOebNkvA/HZjMM7MxL0NYeLYEalloZ8ckak+NDtOViP7oiYzG5vn6WVXyrJDiJPhl4yRdmNAG49iuLmhkUdVsQ=="
-    crossorigin="anonymous" referrerpolicy="no-referrer">
-    </script>
-<script>
-    //var selectLeague = $('#escola').selectize();
-    //var selectSeason = $('#aplicador').selectize();
-
-    function showOverLay() {
-        const overlays = document.querySelectorAll('.overlay')
-
-        overlays.forEach(function (overlay) {
-            overlay.classList.remove('d-none')
-        })
-    }
-
-    function hideOverLay() {
-        const overlays = document.querySelectorAll('.overlay')
-
-        overlays.forEach(function (overlay) {
-            overlay.classList.add('d-none')
-        })
-    }
-
-    async function geraGraficoSimulacao() {
-        showOverLay()
-        try {
-            let query_params = '?velocidade=' + document.querySelector('#velocidade').value + '&angulo=' +
-                document.querySelector('#angulo').value + '&gravidade=' +
-                document.querySelector('#gravidade').value
-            const request = await fetch("http://127.0.0.1:8000/api/lancamento-projetil/" + query_params)
-            const response = await request.json()
-            console.log(response)
-            // 
-            const grafico = document.querySelector('#imagem_grafico')
-            grafico.src = "data:image/png;base64, " + response.imagem_grafico
-            document.querySelector('#altura-maxima').value = response.altura_maxima + 'm'
-            document.querySelector('#alcance').value = response.alcance + 'm'
-            document.querySelector('#tempo_total').value = response.tempo_total + 's'
-        } catch (error) {
-            console.log(error)
-        }
-        hideOverLay()
-    }
-
-</script>
+{% block extra_js %}
 
 {% endblock %}

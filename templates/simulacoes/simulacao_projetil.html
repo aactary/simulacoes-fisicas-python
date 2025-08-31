@@ -1,147 +1,369 @@
-{% extends 'big_one/page.html' %}
-
+{% extends 'manu/base.html' %}
 {% load static %}
 
-{% block title %}
-    PIBID | Simulações Físicas
-{% endblock %}
+{% block title %}{{ simulation.title }} - Simulações Físicas com Python{% endblock %}
 
-{% block style %}
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
+{% block extra_css %}
 <style>
-    .simulacao-section {
-        padding: 60px 0;
+    .simulation-controls {
+        position: sticky;
+        top: 120px;
+        z-index: 100;
     }
-    .grafico-box {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        padding: 20px;
-        min-height: 300px;
-        text-align: center;
+    
+    .parameter-slider {
+        margin-bottom: 1rem;
+    }
+    
+    .parameter-value {
+        font-weight: 600;
+        color: var(--primary-blue);
+    }
+    
+    .simulation-running {
+        border: 2px solid var(--accent-green);
+        box-shadow: 0 0 20px rgba(5, 150, 105, 0.3);
+    }
+    
+    .code-tabs .nav-link {
+        color: var(--gray-600);
+        border: none;
+        background: var(--gray-100);
+        margin-right: 0.25rem;
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+    
+    .code-tabs .nav-link.active {
+        background: var(--gray-900);
+        color: white;
+    }
+    
+    .formula-container {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+        border: 2px solid rgba(37, 99, 235, 0.1);
+        border-radius: 1rem;
+        padding: 2rem;
+        margin: 1rem 0;
+    }
+    
+    .lesson-objective {
+        background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+        border-left: 4px solid var(--accent-green);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 0.5rem 0.5rem 0;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<!-- Seção principal -->
-<section class="simulacao-section">
+<!-- Header da Simulação -->
+<div class="simulation-header">
     <div class="container">
-        <h2 class="mb-4 text-center">{{ titulo_simulacao|default:"Simulação - Lançamento de Projéteis" }}</h2>
-
-        <div class="row">
-            <!-- Formulário -->
-            <div class="col-md-4">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">Insira os parâmetros</h5>
-                        <form method="get">
-                            {% csrf_token %}
-            
-                            <div class="mb-3">
-                                <label for="velocidade" class="form-label">Velocidade (m/s)</label>
-                                <input type="number" name="velocidade" step="0.1" value="{{ velocidade }}"
-                                       class="form-control" id="velocidade">
-                            </div>
-            
-                            <div class="mb-3">
-                                <label for="angulo" class="form-label">Ângulo (graus)</label>
-                                <input type="number" name="angulo" step="1" value="{{ angulo }}"
-                                       class="form-control" id="angulo">
-                            </div>
-            
-                            <div class="mb-3">
-                                <label for="gravidade" class="form-label">Gravidade (m/s²)</label>
-                                <input type="number" name="gravidade" step="0.1" value="{{ gravidade }}"
-                                       class="form-control" id="gravidade">
-                            </div>
-            
-                            <hr>
-            
-                            <button type="button" onclick="geraGraficoSimulacao()" class="btn btn-success">
-                                Simular Lançamento <i class="bi bi-rocket-takeoff-fill"></i>
-                            </button>
-                        </form>
-                    </div>
-                </div>
+        <div class="row align-items-center">
+            <div class="col-lg">
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb text-white-50">
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'simulacoes:index' %}" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-house me-1"></i>Início
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active text-white" aria-current="page">
+                            {{ simulation.category|default:"Mecânica" }}
+                        </li>
+                    </ol>
+                </nav>
+                <h1 class="display-5 fw-bold mb-3">
+                    <i class="bi bi-{{ simulation.icon }} me-3"></i>
+                    {{ simulation.title|default:"Lançamento de Projéteis" }}
+                </h1>
+                <p class="lead mb-0">
+                    {{ simulation.description|default:"Explore os conceitos fundamentais do movimento oblíquo através de simulações interativas e visualizações em tempo real." }}
+                </p>
             </div>
-            
-
-            <!-- Área da Simulação/Gráfico -->
-            <div class="col-md-8">
-                <div class="grafico-box">
-                    <div class="row">
-                        <div class="col-md mb-3">
-                            <label for="altura-maxima" class="form-label">Altura Máxima</label>
-                            <input type="text" class="form-control text-danger" id="altura-maxima"
-                                   value="{{ altura_maxima }}m" readonly>
-                        </div>
-                        <div class="col-md mb-3">
-                            <label for="alcance" class="form-label">Distância Total</label>
-                            <input type="text" class="form-control text-danger" id="alcance"
-                                   value="{{ alcance }}m" readonly>
-                        </div>
-                        <div class="col-md mb-3">
-                            <label for="tempo_total" class="form-label">Tempo Total</label>
-                            <input type="text" class="form-control text-danger" id="tempo_total"
-                                   value="{{ tempo_total }}s" readonly>
-                        </div>
+            <!-- <div class="col-lg-4 text-lg-end">
+                <div class="simulation-status bg-dark bg-opacity-20 rounded-3 p-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <div class="status-indicator bg-success rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                        <span class="fw-semibold">Simulação Ativa</span>
                     </div>
-                    
-                    <div class="text-center mt-4">
-                        <img id="imagem_grafico" src="data:image/png;base64,{{ imagem_grafico }}"
-                             alt="Trajetória do Projétil" class="img-fluid border rounded">
-                    </div>
-                    
+                    <small class="d-block mt-1 opacity-75">
+                        Última atualização: {{ simulation.updated_at|default:"15/01/2024" }}
+                    </small>
                 </div>
-            </div>
+            </div> -->
         </div>
+    </div>
+</div>
 
-        <div class="row">
-            <div class="col-md mt-2">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light border-bottom">
-                        <ul class="nav nav-tabs card-header-tabs" id="simulacaoTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="formulas-tab" data-bs-toggle="tab" data-bs-target="#formulas"
-                                    type="button" role="tab" aria-controls="formulas" aria-selected="true">Fórmulas</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="roteiro-tab" data-bs-toggle="tab" data-bs-target="#roteiro"
-                                    type="button" role="tab" aria-controls="roteiro" aria-selected="false">
-                                    Sugestão: Roteiro de Aula
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="codigo-tab" data-bs-toggle="tab" data-bs-target="#codigo"
-                                    type="button" role="tab" aria-controls="codigo" aria-selected="false">Código Fonte</button>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="card-body">
-                        <div class="tab-content" id="simulacaoTabsContent">
-                            <!-- Fórmulas -->
-                            <div class="tab-pane fade show active" id="formulas" role="tabpanel" aria-labelledby="formulas-tab">
-                                <h5>Fórmulas do Lançamento de Projétil</h5>
-                                <p>Altura máxima (\( h_{\text{max}} \)):</p>
-                                \[
-                                h_{\text{max}} = \frac{v_0^2 \sin^2(\theta)}{2g}
-                                \]
-        
-                                <p>Alcance (\( R \)):</p>
-                                \[
-                                R = \frac{v_0^2 \sin(2\theta)}{g}
-                                \]
-        
-                                <p>Tempo total de voo (\( T \)):</p>
-                                \[
-                                T = \frac{2v_0 \sin(\theta)}{g}
-                                \]
+<div class="container py-5">
+    <div class="row">
+        <!-- Coluna Principal - Simulação e Visualização -->
+        <div class="col-lg">
+            <!-- Controles da Simulação -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-sliders"></i>
+                    Parâmetros da Simulação
+                </h3>
+                <div class="parameters-form">
+                    <!-- <form id="simulationForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="parameter-slider">
+                                    <label for="velocity" class="form-label d-flex justify-content-between">
+                                        <span>Velocidade Inicial (m/s)</span>
+                                        <span class="parameter-value" id="velocityValue">10</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="velocity" min="0" max="50" value="10" step="0.5">
+                                </div>
                             </div>
-        
-                            <!-- Roteiro de Aula -->
-                            <div class="tab-pane fade" id="roteiro" role="tabpanel" aria-labelledby="roteiro-tab">
+                            <div class="col-md-6">
+                                <div class="parameter-slider">
+                                    <label for="time" class="form-label d-flex justify-content-between">
+                                        <span>Tempo de Simulação (s)</span>
+                                        <span class="parameter-value" id="timeValue">10</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="time" min="1" max="30" value="10" step="0.5">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="parameter-slider">
+                                    <label for="position" class="form-label d-flex justify-content-between">
+                                        <span>Posição Inicial (m)</span>
+                                        <span class="parameter-value" id="positionValue">0</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="position" min="-50" max="50" value="0" step="1">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="parameter-slider">
+                                    <label for="mass" class="form-label d-flex justify-content-between">
+                                        <span>Massa do Objeto (kg)</span>
+                                        <span class="parameter-value" id="massValue">1</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="mass" min="0.1" max="10" value="1" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="d-flex gap-3">
+                                    <button type="button" class="btn btn-simulate" id="startSimulation">
+                                        <i class="bi bi-play-fill me-2"></i>
+                                        Iniciar Simulação
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="pauseSimulation">
+                                        <i class="bi bi-pause-fill me-2"></i>
+                                        Pausar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" id="resetSimulation">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>
+                                        Reiniciar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info" id="exportData">
+                                        <i class="bi bi-download me-2"></i>
+                                        Exportar Dados
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form> -->
+                    
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="row">
+                            <div class="col-md">
+                                <label for="velocidade" class="form-label">Velocidade (m/s)</label>
+                                <input type="number" name="velocidade" step="0.1" value="{{velocidade}}" class="form-control form-control-lg" id="velocidade">
+                            </div>
+
+                            <div class="col-md">
+                                <label for="angulo" class="form-label">Ângulo (graus)</label>
+                                <input type="number" name="angulo" step="1" value="{{angulo}}" class="form-control form-control-lg" id="angulo">
+                            </div>
+
+                            <div class="col-md">
+                                <label for="gravidade" class="form-label">Gravidade (m/s²)</label>
+                                <input type="number" name="gravidade" step="0.1" value="{{gravidade}}" class="form-control form-control-lg" id="gravidade">
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="d-flex gap-3">
+                                    <button type="submit" class="btn btn-simulate" id="startSimulation">
+                                        <i class="bi bi-play-fill me-2"></i>
+                                        Iniciar Simulação
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" disabled id="pauseSimulation">
+                                        <i class="bi bi-pause-fill me-2"></i>
+                                        Pausar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" disabled id="resetSimulation">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>
+                                        Reiniciar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Área de Visualização -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-graph-up"></i>
+                    Visualização da Simulação
+                </h3>
+                <div class="row">
+                    <div class="col-12">
+                        <!-- Animação do Movimento -->
+                        <div class="visualization-area mb-4" id="animationArea">
+                            {% if imagem_grafico %}
+                            {{imagem_grafico|safe}}
+                            {% else %}
+                            <div class="text-center">
+                                <i class="bi bi-play-circle fs-1 text-muted mb-3"></i>
+                                <h5 class="text-muted">Clique em "Iniciar Simulação" para visualizar o movimento</h5>
+                                <p class="text-muted">A animação mostrará o objeto em movimento retilíneo uniforme</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                
+                <!-- Dados em Tempo Real -->
+                <div class="real-time-data bg-light rounded-3 p-3">
+                    <h6 class="mb-3">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        Dados da Simulação
+                    </h6>
+                    <div class="row text-center">
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-primary" id="currentTime">{{altura_maxima}} m</div>
+                                <div class="data-label text-muted">Altura Máxima</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-success" id="currentPosition">{{alcance}} m</div>
+                                <div class="data-label text-muted">Distância Total</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-info" id="currentVelocity">{{tempo_total}} s</div>
+                                <div class="data-label text-muted">Tempo</div>
+                            </div>
+                        </div>
+                        <!-- <div class="col-md-3">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-warning" id="currentDistance">0.0</div>
+                                <div class="data-label text-muted">Distância (m)</div>
+                            </div>
+                        </div> -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fórmulas Matemáticas -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-calculator"></i>
+                    Fórmulas Matemáticas
+                </h3>
+                <div class="formula-container">
+                    <!-- <h5 class="text-center mb-4 text-primary">Movimento Retilíneo Uniforme</h5> -->
+                    
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Altura Máxima $h_{max}$</h6>
+                                <div class="formula-math text-center">
+                                    $$ \dfrac{v_0^2 \sin^2 (\theta)}{2g}$$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: $v_0$ = velocidade incial, $\theta$ = ângulo, $g$ = gravidade
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Alcance $R$</h6>
+                                <div class="formula-math text-center">
+                                    $$R = \dfrac{v_0^2 \sin (2 \theta)}{g} $$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Onde: $v_0$ = velocidade incial, $\theta$ = ângulo, $g$ = gravidade
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Tempo total de voo $T$</h6>
+                                <div class="formula-math text-center">
+                                    $$ T = \dfrac{2v_0 \sin(\theta)}{g} $$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                   Onde: $v_0$ = velocidade incial, $\theta$ = ângulo, $g$ = gravidade
+                                </small>
+                            </div>
+                        </div>
+                        <!-- <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Condição para MRU</h6>
+                                <div class="formula-math text-center">
+                                    $$a = 0 \Rightarrow v = \text{constante}$$
+                                </div>
+                                <small class="text-muted d-block text-center mt-2">
+                                    No MRU, a aceleração é zero e a velocidade permanece constante
+                                </small>
+                            </div>
+                        </div> -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Código da Aplicação -->
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-code-slash"></i>
+                    Anexos
+                </h3>
+                <div class="code-section">
+                    <ul class="nav nav-tabs" id="codeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="python-tab" data-bs-toggle="tab" data-bs-target="#python-code" type="button" role="tab">
+                                <i class="bi bi-file-code me-1"></i>
+                                Plano de Aula
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="javascript-tab" data-bs-toggle="tab" data-bs-target="#javascript-code" type="button" role="tab">
+                                <i class="bi bi-filetype-py me-1"></i>
+                                Código Fonte
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="html-tab" data-bs-toggle="tab" data-bs-target="#html-code" type="button" role="tab">
+                                <i class="bi bi-filetype-html me-1"></i>
+                                Exercícios
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="codeTabsContent">
+                        <div class="tab-pane fade show active" id="python-code" role="tabpanel">
+                            <div class="">
+                                <!--  -->
                                 <h4><i class="bi bi-pin-angle-fill"></i> ROTEIRO DE AULA: Simulação Computacional de Lançamento de Projéteis</h4>
         
                                 <ul>
@@ -215,77 +437,24 @@
                                     </ul>
                                 </ul>
                             </div>
-        
-                            <!-- Código Fonte -->
-                            <div class="tab-pane fade" id="codigo" role="tabpanel" aria-labelledby="codigo-tab">
-                                <h5>Google Colab Notebook</h5>
-                                <p>Acesse o código-fonte clicando no link abaixo:</p>
-        
-                                <a href="https://colab.research.google.com/drive/1hsV5OYdVdiFAHwrswDkR1uUm19UBdVAI?usp=sharing"
-                                    target="_blank" rel="noopener">
-                                    <img src="https://colab.research.google.com/assets/colab-badge.svg"
-                                        alt="Abrir no Google Colab" />
-                                </a>
+                        </div>
+                        <div class="tab-pane fade" id="javascript-code" role="tabpanel">
+                            <div class="">
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="html-code" role="tabpanel">
+                            <div class="">
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-    </div>
-</section>
 
+    </div>
+</div>
 {% endblock %}
 
-{% block script %}
-<script src="https://code.jquery.com/jquery-3.6.4.min.js"
-    integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/js/selectize.min.js"
-    integrity="sha512-IOebNkvA/HZjMM7MxL0NYeLYEalloZ8ckak+NDtOViP7oiYzG5vn6WVXyrJDiJPhl4yRdmNAG49iuLmhkUdVsQ=="
-    crossorigin="anonymous" referrerpolicy="no-referrer">
-    </script>
-<script>
-    //var selectLeague = $('#escola').selectize();
-    //var selectSeason = $('#aplicador').selectize();
-
-    function showOverLay() {
-        const overlays = document.querySelectorAll('.overlay')
-
-        overlays.forEach(function (overlay) {
-            overlay.classList.remove('d-none')
-        })
-    }
-
-    function hideOverLay() {
-        const overlays = document.querySelectorAll('.overlay')
-
-        overlays.forEach(function (overlay) {
-            overlay.classList.add('d-none')
-        })
-    }
-
-    async function geraGraficoSimulacao() {
-        showOverLay()
-        try {
-            let query_params = '?velocidade=' + document.querySelector('#velocidade').value + '&angulo=' +
-                document.querySelector('#angulo').value + '&gravidade=' +
-                document.querySelector('#gravidade').value
-            const request = await fetch("http://127.0.0.1:8000/api/lancamento-projetil/" + query_params)
-            const response = await request.json()
-            console.log(response)
-            // 
-            const grafico = document.querySelector('#imagem_grafico')
-            grafico.src = "data:image/png;base64, " + response.imagem_grafico
-            document.querySelector('#altura-maxima').value = response.altura_maxima + 'm'
-            document.querySelector('#alcance').value = response.alcance + 'm'
-            document.querySelector('#tempo_total').value = response.tempo_total + 's'
-        } catch (error) {
-            console.log(error)
-        }
-        hideOverLay()
-    }
-
-</script>
+{% block extra_js %}
 
 {% endblock %}
