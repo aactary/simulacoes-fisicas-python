@@ -53,6 +53,30 @@
         margin-bottom: 1rem;
         border-radius: 0 0.5rem 0.5rem 0;
     }
+
+    .list-group-item.list-group-item-action:hover:not(:disabled) {
+        background-color: #e9ecef;
+        cursor: pointer;
+    }
+
+    .list-group-item.list-group-item-success {
+        background-color: #d1e7dd; /* Cor de sucesso do Bootstrap */
+        border-color: #badbcc;
+    }
+
+    .list-group-item.list-group-item-danger {
+        background-color: #f8d7da; /* Cor de perigo do Bootstrap */
+        border-color: #f5c2c7;
+    }
+
+    #question {
+        line-height: 1.5;
+    }
+
+    /* Estilo para matemática com LaTeX */
+    #question, .list-group-item {
+        font-family: 'Times New Roman', serif;
+    }
 </style>
 {% endblock %}
 
@@ -439,11 +463,55 @@
                             </div>
                         </div>
                         <div class="tab-pane fade" id="javascript-code" role="tabpanel">
-                            <div class="">
+                            <div class="mt-4">
+                                <h5>Google Colab Notebook</h5>
+                                <p>Acesse o código-fonte clicando no link abaixo:</p>
+
+                                <a href="https://colab.research.google.com/drive/17dO5FpsauIJRmUcIHDb-jMAZBPuVVIFJ?usp=sharing" target="_blank" rel="noopener">
+                                    <img style="width: 200px; height: auto;" src="https://colab.research.google.com/assets/colab-badge.svg" alt="Abrir no Google Colab" />
+                                </a>
                             </div>
                         </div>
                         <div class="tab-pane fade" id="html-code" role="tabpanel">
-                            <div class="">
+                            <div class="mt-4">
+                                <div class="container-fluid py-5">
+                                    <div class="row justify-content-center">
+                                        <div class="col-12 col-md-8 col-lg-6">
+                                            <div class="card shadow-lg border-0 rounded-3">
+                                                <div class="card-body p-4 p-md-5">
+                                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                                        <h2 class="card-title text-center text-primary fw-bold flex-grow-1">Quiz: Lançamento de Projéteis</h2>
+                                                        <span class="badge bg-primary fs-6" id="question-number"></span>
+                                                    </div>
+                                                    
+                                                    <div class="progress mb-4" role="progressbar" aria-label="Progresso do Quiz" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                                        <div class="progress-bar" id="progress-bar"></div>
+                                                    </div>
+
+                                                    <div class="question-container mb-4">
+                                                        <p class="fs-4 fw-medium text-dark" id="question"></p>
+                                                    </div>
+                                                    
+                                                    <div class="options-container list-group" id="answer-buttons">
+                                                        </div>
+
+                                                    <div class="feedback-container mt-4" style="display: none;" id="feedback-area">
+                                                        <div class="alert alert-info py-2" role="alert">
+                                                            <small class="text-secondary fw-semibold">Dica:</small> <span id="hint-text"></span>
+                                                        </div>
+                                                        <div class="alert py-2" role="alert" id="rationale-alert">
+                                                            <small class="fw-semibold" id="rationale-label"></small> <span id="rationale-text"></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="d-grid gap-2 mt-4">
+                                                        <button class="btn btn-primary fw-bold" id="next-btn" disabled>Próxima Pergunta</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -456,5 +524,240 @@
 {% endblock %}
 
 {% block extra_js %}
+
+<script text="text/javascript">
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    const quizData = [
+        {
+            "questionNumber": 1,
+            "question": "Com base na fórmula para o alcance de um projétil, $alcance = \\frac{velocidade^2 \\times \\sin(2 \\times angulo)}{gravidade}$, qual ângulo de lançamento (desconsiderando a resistência do ar) maximizaria o alcance?",
+            "answerOptions": [
+                {
+                    "text": "$30^o$",
+                    "isCorrect": false,
+                    "rationale": "Embora $30^o$ e $60^o$ resultem no mesmo alcance, eles não produzem o alcance máximo. A função seno tem seu valor máximo igual a 1."
+                },
+                {
+                    "text": "$45^o$",
+                    "isCorrect": true,
+                    "rationale": "O alcance máximo é obtido quando o valor de $\\sin(2 \\times angulo)$ é 1. Isso ocorre quando $2 \\times angulo = 90^o$, o que significa que o ângulo de lançamento é $45^o$."
+                },
+                {
+                    "text": "$60^o$",
+                    "isCorrect": false,
+                    "rationale": "Embora $60^o$ e $30^o$ resultem no mesmo alcance, eles não produzem o alcance máximo. A função seno tem seu valor máximo igual a 1."
+                },
+                {
+                    "text": "$90^o$",
+                    "isCorrect": false,
+                    "rationale": "Um ângulo de $90^o$ resulta em um lançamento vertical para cima. Neste caso, o alcance horizontal seria zero."
+                }
+            ],
+            "hint": "Para que uma função seno atinja seu valor máximo de 1, qual deve ser o valor do seu argumento?"
+        },
+        {
+            "questionNumber": 2,
+            "question": "A simulação calcula a altura máxima do projétil usando a fórmula $altura_{maxima} = \\frac{velocidade^2 \\times (\\sin(angulo)^2)}{2 \\times gravidade}$. Se a velocidade inicial fosse de $30 m/s$ e o ângulo de lançamento de $30^o$ (considere $\\sin(30^o) = 0.5$), qual seria a altura máxima (use $g = 9.8 m/s^2$)?",
+            "answerOptions": [
+                {
+                    "text": "$11,5 m$",
+                    "isCorrect": true,
+                    "rationale": "Aplicando os valores na fórmula, a altura máxima é $\\frac{30^2 \\times (0.5)^2}{2 \\times 9.8} = \\frac{900 \\times 0.25}{19.6} = \\frac{225}{19.6} \\approx 11.48$ metros."
+                },
+                {
+                    "text": "$22,9 m$",
+                    "isCorrect": false,
+                    "rationale": "Este valor seria obtido se o denominador da equação fosse $g$ em vez de $2g$."
+                },
+                {
+                    "text": "$45,9 m$",
+                    "isCorrect": false,
+                    "rationale": "Este valor seria obtido se o ângulo não fosse elevado ao quadrado e o denominador fosse $g$ em vez de $2g$."
+                },
+                {
+                    "text": "$56,2 m$",
+                    "isCorrect": false,
+                    "rationale": "Este valor resultaria de um erro de cálculo, como não elevar o seno do ângulo ao quadrado."
+                }
+            ],
+            "hint": "Lembre-se de seguir a ordem das operações e elevar ao quadrado o valor do seno do ângulo antes de multiplicar pela velocidade ao quadrado."
+        },
+        {
+            "questionNumber": 3,
+            "question": "A simulação usa a equação $tempo_{total} = \\frac{2 \\times velocidade \\times \\sin(angulo)}{gravidade}$. O que a variável 'tempo_total' representa no contexto da simulação?",
+            "answerOptions": [
+                {
+                    "text": "O tempo que o projétil leva para atingir a altura máxima.",
+                    "isCorrect": false,
+                    "rationale": "O tempo para atingir a altura máxima é metade do tempo total de voo, pois a trajetória parabólica é simétrica."
+                },
+                {
+                    "text": "O tempo total que o projétil permanece no ar antes de tocar o solo novamente.",
+                    "isCorrect": true,
+                    "rationale": "O tempo total de voo de um projétil é o tempo que ele leva para completar a sua trajetória, saindo do ponto inicial e retornando ao mesmo nível vertical."
+                },
+                {
+                    "text": "O tempo que o projétil leva para percorrer a distância horizontal máxima.",
+                    "isCorrect": false,
+                    "rationale": "Isso descreve o alcance horizontal, que é medido em metros, não o tempo de voo, que é medido em segundos."
+                },
+                {
+                    "text": "O tempo que o projétil leva para atingir o ponto de partida na mesma velocidade.",
+                    "isCorrect": false,
+                    "rationale": "Embora o projétil retorne à altura inicial, a velocidade vertical é a mesma em magnitude, mas na direção oposta, e a velocidade horizontal permanece constante."
+                }
+            ],
+            "hint": "Pense no que a trajetória completa de um projétil significa em termos de tempo."
+        }
+    ];
+
+    const questionElement = document.getElementById("question");
+    const answerButtons = document.getElementById("answer-buttons");
+    const nextButton = document.getElementById("next-btn");
+    const feedbackArea = document.getElementById("feedback-area");
+    const hintText = document.getElementById("hint-text");
+    const rationaleAlert = document.getElementById("rationale-alert");
+    const rationaleLabel = document.getElementById("rationale-label");
+    const rationaleText = document.getElementById("rationale-text");
+    const questionNumberElement = document.getElementById("question-number");
+    const progressBar = document.getElementById("progress-bar");
+
+    let currentQuestionIndex = 0;
+    let score = 0;
+    
+    // Função auxiliar para renderizar o texto com KaTeX
+    function renderContentWithKaTeX(element, content) {
+        const regex = /\$(.*?)\$/g;
+        let renderedContent = content.replace(regex, (match, p1) => {
+            try {
+                return katex.renderToString(p1, {
+                    throwOnError: false
+                });
+            } catch (error) {
+                console.error("Erro ao renderizar KaTeX:", error);
+                return match; 
+            }
+        });
+        element.innerHTML = renderedContent;
+    }
+
+    function startQuiz() {
+        currentQuestionIndex = 0;
+        score = 0;
+        nextButton.innerHTML = "Próxima Pergunta";
+        nextButton.disabled = true;
+        displayQuestion();
+    }
+
+    function displayQuestion() {
+        resetState();
+        let currentQuestion = quizData[currentQuestionIndex];
+        let questionNo = currentQuestionIndex + 1;
+        questionNumberElement.textContent = `${questionNo}/${quizData.length}`;
+        
+        renderContentWithKaTeX(questionElement, currentQuestion.question);
+
+        const progressPercentage = (questionNo / quizData.length) * 100;
+        progressBar.style.width = progressPercentage + '%';
+        progressBar.setAttribute('aria-valuenow', progressPercentage);
+
+        currentQuestion.answerOptions.forEach((answer, index) => {
+            const button = document.createElement("button");
+            renderContentWithKaTeX(button, answer.text);
+            button.classList.add("list-group-item", "list-group-item-action", "py-3", "mb-2", "rounded-3", "fw-medium");
+            button.dataset.index = index; // Armazena o índice da resposta
+            
+            answerButtons.appendChild(button);
+            if (answer.isCorrect) {
+                button.dataset.isCorrect = "true";
+            }
+            button.addEventListener("click", selectAnswer);
+        });
+
+        hintText.textContent = currentQuestion.hint;
+    }
+
+    function resetState() {
+        nextButton.disabled = true;
+        feedbackArea.style.display = 'none';
+        while (answerButtons.firstChild) {
+            answerButtons.removeChild(answerButtons.firstChild);
+        }
+    }
+
+    function selectAnswer(e) {
+        const selectedBtn = e.target;
+        const isCorrect = selectedBtn.dataset.isCorrect === "true";
+        const currentQuestion = quizData[currentQuestionIndex];
+        
+        // Recupera o índice do botão clicado
+        const selectedIndex = selectedBtn.dataset.index;
+
+        feedbackArea.style.display = 'block';
+        
+        // Acessa a razão pelo índice
+        const rationale = currentQuestion.answerOptions[selectedIndex].rationale;
+        renderContentWithKaTeX(rationaleText, rationale);
+
+        if (isCorrect) {
+            selectedBtn.classList.add("list-group-item-success");
+            rationaleAlert.classList.remove("alert-danger");
+            rationaleAlert.classList.add("alert-success");
+            rationaleLabel.textContent = "Correto: ";
+            score++;
+        } else {
+            selectedBtn.classList.add("list-group-item-danger");
+            rationaleAlert.classList.remove("alert-success");
+            rationaleAlert.classList.add("alert-danger");
+            rationaleLabel.textContent = "Incorreto: ";
+        }
+
+        Array.from(answerButtons.children).forEach(button => {
+            if (button.dataset.isCorrect === "true") {
+                button.classList.add("list-group-item-success");
+            }
+            button.disabled = true;
+        });
+
+        nextButton.disabled = false;
+    }
+
+    function showScore() {
+        resetState();
+        const cardBody = document.querySelector('.card-body');
+        cardBody.innerHTML = `
+            <h2 class="card-title text-center text-primary fw-bold">Quiz Concluído!</h2>
+            <p class="fs-4 text-center mt-4">Você acertou ${score} de ${quizData.length} perguntas!</p>
+            <div class="d-grid gap-2 mt-4">
+                <button class="btn btn-primary fw-bold" id="restart-btn">Refazer Quiz</button>
+            </div>
+        `;
+        document.getElementById("restart-btn").addEventListener("click", startQuiz);
+    }
+
+    function handleNextButton() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < quizData.length) {
+            displayQuestion();
+        } else {
+            showScore();
+        }
+    }
+
+    nextButton.addEventListener("click", () => {
+        if (currentQuestionIndex < quizData.length) {
+            handleNextButton();
+        } else {
+            startQuiz();
+        }
+    });
+
+    startQuiz();
+});
+
+
+</script>
 
 {% endblock %}
