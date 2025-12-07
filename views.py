@@ -290,6 +290,25 @@ def dilatacao_termica(request):
     }
     return HttpResponse(template.render(context, request))
 
+def lei_gravitacao_universal_newton(request):
+    # Valores iniciais padrão
+    context = {
+        'simulation': {
+            'title': 'Lei da Gravitação Universal',
+            'category': 'Mecânica Celeste',
+            'icon': 'globe', # Ícone do Bootstrap
+            'description': 'Simule a órbita de corpos celestes alterando massa e velocidade inicial. Observe como a força gravitacional molda as trajetórias circulares, elípticas ou hiperbólicas.',
+            'updated_at': '07/12/2025'
+        },
+        # Parâmetros padrão para os inputs HTML
+        'defaults': {
+            'massa_sol': 1.0,  # Unidades arbitrárias para facilitar a visualização
+            'vel_inicial': 1.0, 
+            'distancia': 1.0
+        }
+    }
+    return render(request, 'simulacoes/lei_gravitacao_universal_newton.html', context)
+
 ####################### Demais funções auxiliares #######################
 def gerar_grafico_plotly(x, y, velocidade, angulo, gravidade):
     
