@@ -25,5 +25,6 @@ urlpatterns = [
     path("simulacao/lancamento-projetil/", views.simulacao_projetil, name="simulacao_projetil"),
     path("simulacao/curva-aquecimento/", views.curva_aquecimento, name="curva_aquecimento"),
     path("simulacao/dilatacao-termica/", views.dilatacao_termica, name="dilatacao_termica"),
+    path("simulacao/lei-gravitacao-universal-newton/", views.lei_gravitacao_universal_newton, name="lei_gravitacao_universal_newton"),
     # outros paths
 ]

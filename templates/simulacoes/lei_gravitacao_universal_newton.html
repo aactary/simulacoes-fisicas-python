@@ -1,0 +1,854 @@
+{% extends 'manu/base.html' %}
+{% load static %}
+
+{% block title %}{{ simulation.title }} - Simulações Físicas{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos mantidos do seu original */
+    .simulation-controls { position: sticky; top: 120px; z-index: 100; }
+    .parameter-value { font-weight: 600; color: var(--primary-blue); }
+    .formula-container {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+        border: 2px solid rgba(37, 99, 235, 0.1);
+        border-radius: 1rem;
+        padding: 2rem;
+        margin: 1rem 0;
+    }
+    /* Estilo específico para o Canvas */
+    canvas#simCanvas {
+        background-color: #0b0f19; /* Fundo espacial escuro */
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        width: 100%;
+        height: 400px;
+        cursor: crosshair;
+    }
+
+    canvas#simCanvas {
+        background-color: #0b0f19;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        width: 100%;
+        height: 400px;
+        /* cursor: crosshair; removido pois agora é automático */
+    }
+
+    .zoom-indicator {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        color: #aaa;
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="simulation-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg">
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb text-white-50">
+                        <li class="breadcrumb-item"><a href="#" class="text-white-50">Início</a></li>
+                        <li class="breadcrumb-item active text-white">{{ simulation.category }}</li>
+                    </ol>
+                </nav>
+                <h1 class="display-5 fw-bold mb-3"><i class="bi bi-{{ simulation.icon }} me-3"></i>{{ simulation.title }}</h1>
+                <p class="lead mb-0">{{ simulation.description }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg">
+            
+            <div class="simulation-section mb-4">
+                <h3><i class="bi bi-sliders"></i> Parâmetros da Simulação</h3>
+                <div class="parameters-form card p-4 border-0 shadow-sm">
+                    <form id="simForm" class="row g-3 align-items-end" onsubmit="return false;">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="massaSol" class="form-label">Massa da Estrela ($M$)</label>
+                                <input type="range" class="form-range" id="massaSolRange" min="0.5" max="3.0" step="0.1" value="{{ defaults.massa_sol }}">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">0.5x</small>
+                                    <span class="parameter-value" id="valMassaSol">{{ defaults.massa_sol }}</span>
+                                    <small class="text-muted">3.0x</small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="velInicial" class="form-label">Velocidade Inicial ($v$)</label>
+                                <input type="range" class="form-range" id="velInicialRange" min="0.5" max="2.0" step="0.1" value="{{ defaults.vel_inicial }}">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Lento</small>
+                                    <span class="parameter-value" id="valVelInicial">{{ defaults.vel_inicial }}</span>
+                                    <small class="text-muted">Rápido</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="distInicial" class="form-label">Distância Inicial ($r$)</label>
+                                <input type="range" class="form-range" id="distInicialRange" min="0.5" max="1.5" step="0.1" value="{{ defaults.distancia }}">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Perto</small>
+                                    <span class="parameter-value" id="valDistInicial">{{ defaults.distancia }} UA</span>
+                                    <small class="text-muted">Longe</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-12 d-flex gap-2">
+                                <button type="button" class="btn btn-primary btn-lg" id="btnStart">
+                                    <i class="bi bi-play-fill me-2"></i>Iniciar / Atualizar
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-lg" id="btnReset">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Limpar Trilha
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="simulation-section mb-4">
+                <h3><i class="bi bi-graph-up"></i> Visualização da Órbita</h3>
+                <div class="row">
+                    <div class="col-12">
+                        <div class="visualization-area mb-4 position-relative">
+                            <canvas id="simCanvas" width="800" height="400"></canvas>
+                            <div class="position-absolute top-0 end-0 p-3 text-white-50">
+                                <small>Sol (Amarelo) | Planeta (Azul)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="real-time-data bg-light rounded-3 p-3 shadow-sm border">
+                    <div class="row text-center">
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-primary" id="liveDist">0.00 UA</div>
+                                <div class="data-label text-muted">Distância ($r$)</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-success" id="liveVel">0.00 un</div>
+                                <div class="data-label text-muted">Velocidade ($v$)</div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="data-item">
+                                <div class="data-value fs-4 fw-bold text-danger" id="liveForce">0.00 N</div>
+                                <div class="data-label text-muted">Força Grav. ($F_g$)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="simulation-section mb-4">
+                <h3><i class="bi bi-calculator"></i> Fundamentação Física</h3>
+                <div class="formula-container">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Lei da Gravitação Universal</h6>
+                                <div class="formula-math text-center fs-4">
+                                    $$ F_g = G \frac{M \cdot m}{r^2} $$
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Segunda Lei de Newton</h6>
+                                <div class="formula-math text-center fs-4">
+                                    $$ \vec{a} = \frac{\vec{F_{resultante}}}{m} $$
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="simulation-section mb-4">
+                <h3>
+                    <i class="bi bi-code-slash"></i>
+                    Anexos
+                </h3>
+                <div class="code-section">
+                    <ul class="nav nav-tabs" id="codeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="python-tab" data-bs-toggle="tab" data-bs-target="#python-code" type="button" role="tab">
+                                <i class="bi bi-file-code me-1"></i>
+                                Plano de Aula
+                            </button>
+                        </li>
+                        <!-- <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="javascript-tab" data-bs-toggle="tab" data-bs-target="#javascript-code" type="button" role="tab">
+                                <i class="bi bi-filetype-py me-1"></i>
+                                Código Fonte
+                            </button>
+                        </li> -->
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="html-tab" data-bs-toggle="tab" data-bs-target="#html-code" type="button" role="tab">
+                                <i class="bi bi-filetype-html me-1"></i>
+                                Exercícios
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="codeTabsContent">
+                        <div class="tab-pane fade show active" id="python-code" role="tabpanel">
+                            <!-- plano de aula -->
+                             <div class="container-fluid p-0">
+                                <div class="card mb-3 border-start-primary shadow-sm">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0 text-primary"><i class="bi bi-card-heading me-2"></i>I. Identificação</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-sm mb-0">
+                                                <tbody>
+                                                    <tr>
+                                                        <th class="bg-light" style="width: 20%">Nível de Ensino</th>
+                                                        <td>Ensino Médio</td>
+                                                        <th class="bg-light" style="width: 20%">Instituição</th>
+                                                        <td>[A Preencher]</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="bg-light">Natureza</th>
+                                                        <td>Aula Regular</td>
+                                                        <th class="bg-light">Docente</th>
+                                                        <td>[A Preencher]</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="bg-light">Modalidade</th>
+                                                        <td>Presencial</td>
+                                                        <th class="bg-light">Área</th>
+                                                        <td>Física / Mecânica</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="bg-light">Título da Aula</th>
+                                                        <td colspan="3"><strong>A Dança dos Planetas: Simulando a Lei da Gravitação Universal</strong></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class="bg-light">Tipo Predominante</th>
+                                                        <td>Mista (Teórica / Experimental-Simulada)</td>
+                                                        <th class="bg-light">Duração</th>
+                                                        <td>50 minutos</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <div class="card h-100 shadow-sm border-start-warning">
+                                            <div class="card-body">
+                                                <h5 class="card-title text-warning-emphasis"><i class="bi bi-question-circle-fill me-2"></i>II. Problema Central</h5>
+                                                <p class="card-text fs-5">
+                                                    Como a velocidade inicial de um corpo celeste determina o seu destino orbital (colisão, órbita estável ou escape) sob a influência de uma força gravitacional central? [cite: 68]
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="card h-100 shadow-sm border-start-success">
+                                            <div class="card-header bg-success bg-opacity-10">
+                                                <h6 class="mb-0 text-success-emphasis fw-bold">III. Objetivo Principal [cite: 69, 70]</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Compreender a relação dinâmica entre a força gravitacional ($F = G\frac{Mm}{r^2}$), a velocidade tangencial e o formato das trajetórias orbitais, utilizando simulação computacional para visualizar conceitos abstratos.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card h-100 shadow-sm">
+                                            <div class="card-header bg-light">
+                                                <h6 class="mb-0 text-secondary fw-bold">III.1 Objetivos Complementares [cite: 72]</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <ul class="mb-0 small">
+                                                    <li>Diferenciar órbitas circulares, elípticas e trajetórias de escape (parabólicas/hiperbólicas).</li>
+                                                    <li>Analisar qualitativamente o conceito de velocidade de escape.</li>
+                                                    <li>Relacionar a Segunda Lei de Newton (Aceleração Centrípeta) com a Lei da Gravitação.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-info shadow-sm" role="alert">
+                                    <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>IV. Conhecimentos Introdutórios Relevantes [cite: 76]</h6>
+                                    <hr>
+                                    <p class="mb-0 small">Para o êxito desta aula, os alunos devem estar familiarizados com: Vetores (direção, sentido e módulo); 1ª e 2ª Leis de Newton; Conceito básico de força resultante e aceleração.</p>
+                                </div>
+
+                                <div class="card mb-3 shadow-sm">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0 text-primary"><i class="bi bi-journal-text me-2"></i>V. Metodologia e Estratégias [cite: 79, 81]</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>A aula seguirá uma abordagem investigativa mediada por tecnologia. Inicia-se com uma exposição dialogada breve, seguida de experimentação no simulador e fechamento com sistematização teórica.</p>
+                                        
+                                        <div class="list-group list-group-flush">
+                                            <div class="list-group-item">
+                                                <div class="d-flex w-100 justify-content-between">
+                                                    <h6 class="mb-1 fw-bold">1. Problematização Inicial (10 min)</h6>
+                                                </div>
+                                                <small class="text-muted">Discussão sobre o experimento mental do "Canhão de Newton". Desenho no quadro mostrando lançamentos de projéteis com velocidades crescentes até entrarem em órbita.</small>
+                                            </div>
+                                            <div class="list-group-item">
+                                                <div class="d-flex w-100 justify-content-between">
+                                                    <h6 class="mb-1 fw-bold">2. Exploração Dirigida (25 min)</h6>
+                                                </div>
+                                                <small class="text-muted">Uso do simulador anexo. Os alunos devem cumprir desafios: 
+                                                    (a) Criar uma órbita circular perfeita; 
+                                                    (b) Gerar uma colisão intencional; 
+                                                    (c) Achar a velocidade mínima para o planeta escapar da tela (escape).
+                                                </small>
+                                            </div>
+                                            <div class="list-group-item">
+                                                <div class="d-flex w-100 justify-content-between">
+                                                    <h6 class="mb-1 fw-bold">3. Sistematização e Discussão (15 min)</h6>
+                                                </div>
+                                                <small class="text-muted">Formalização matemática no quadro, relacionando o que foi visto na tela (mudança de trajetória) com a fórmula da gravitação universal.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="card h-100 shadow-sm">
+                                            <div class="card-body">
+                                                <h6 class="card-title fw-bold text-secondary">VI. Recursos Necessários [cite: 88]</h6>
+                                                <ul class="small mb-0">
+                                                    <li>Computador com projetor multimídia.</li>
+                                                    <li>Dispositivos móveis (celulares/tablets) ou laboratório de informática para os alunos.</li>
+                                                    <li>Acesso à aplicação web "Simulador de Órbita Planetária".</li>
+                                                    <li>Quadro branco e marcadores.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card h-100 shadow-sm border-start-danger">
+                                            <div class="card-body">
+                                                <h6 class="card-title fw-bold text-danger">VII. Proposta de Avaliação [cite: 91, 101]</h6>
+                                                <p class="small">Avaliação formativa baseada na observação da interação dos alunos com o simulador.</p>
+                                                <p class="small fw-bold mb-0">Indicadores:</p>
+                                                <ul class="small mb-0">
+                                                    <li>Capacidade de manipular as variáveis ($M$, $v$, $r$) para atingir os desafios propostos.</li>
+                                                    <li>Participação na discussão final relacionando a simulação com a teoria.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card bg-light border-0">
+                                    <div class="card-body p-3">
+                                        <h6 class="fw-bold"><i class="bi bi-book me-2"></i>VIII. Sugestões e Referências [cite: 105, 109]</h6>
+                                        <ul class="list-unstyled small mb-0">
+                                            <li><i class="bi bi-arrow-right-short"></i> <strong>Leitura:</strong> Capítulo sobre Gravitação Universal do livro didático adotado.</li>
+                                            <li><i class="bi bi-arrow-right-short"></i> <strong>Referência do Plano:</strong> FERREIRA, M.; FILHO, O. L. S. Proposta de plano de aula para o ensino de física. <em>Physicae Organum</em>, v. 5, n. 1, p. 39-44, 2019.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 pt-3 border-top">
+                                    <h5 class="text-primary"><i class="bi bi-cpu me-2"></i>Nota Técnica: Unidades da Simulação</h5>
+                                    <div class="alert alert-secondary">
+                                        <p class="mb-2"><strong>Por que não usamos metros e quilogramas reais?</strong></p>
+                                        <p class="small text-muted text-justify">
+                                            Nesta simulação, utilizamos um sistema de <strong>Unidades Normalizadas</strong> (ou Unidades Astronômicas Arbitrárias) em vez do Sistema Internacional (SI). 
+                                        </p>
+                                        <div class="row mt-3">
+                                            <div class="col-md-6">
+                                                <h6 class="fw-bold small">O Problema da Escala Real:</h6>
+                                                <ul class="small text-muted">
+                                                    <li>A massa do Sol é $1,98 \times 10^{30}$ kg.</li>
+                                                    <li>A constante $G$ é $6,67 \times 10^{-11}$.</li>
+                                                    <li>Computadores podem ter erros de arredondamento com números tão díspares (muito grandes multiplicados por muito pequenos).</li>
+                                                </ul>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6 class="fw-bold small">A Solução Normalizada:</h6>
+                                                <ul class="small text-muted">
+                                                    <li>Definimos $G = 1$, Massa do Sol = 1 e Distância Terra-Sol = 1 UA.</li>
+                                                    <li>Isso torna a velocidade orbital circular igual a 1.</li>
+                                                    <li><strong>Vantagem Pedagógica:</strong> O aluno foca na <em>proporção</em> (ex: "se eu dobrar a massa, o que acontece?") em vez de decorar números gigantescos.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                        <!-- <div class="tab-pane fade" id="javascript-code" role="tabpanel">
+                            
+                        </div> -->
+                        <div class="tab-pane fade" id="html-code" role="tabpanel">
+                            <!-- quiz da simulação -->
+                            <div class="container-fluid p-0">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Quiz: Teste seus Conhecimentos</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="text-muted mb-4">Responda as questões abaixo com base na sua experiência com o simulador e nos conceitos de Gravitação Universal.</p>
+                                        
+                                        <form id="quizForm">
+                                            <div id="quizQuestions"></div>
+                                            
+                                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                                <button type="button" class="btn btn-outline-secondary me-md-2" id="btnResetQuiz" style="display: none;">
+                                                    <i class="bi bi-arrow-counterclockwise me-2"></i>Tentar Novamente
+                                                </button>
+                                                <button type="button" class="btn btn-success" id="btnSubmitQuiz">
+                                                    <i class="bi bi-check-circle-fill me-2"></i>Verificar Respostas
+                                                </button>
+                                            </div>
+                                        </form>
+
+                                        <div id="quizResult" class="alert mt-3 text-center" role="alert" style="display: none;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="simulationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title fw-bold" id="modalTitle">Título</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-3">
+                    <i id="modalIcon" class="bi fs-1"></i>
+                </div>
+                <h4 class="mb-3" id="modalHeadline">Headline</h4>
+                <p class="text-muted" id="modalMessage">Mensagem detalhada aqui.</p>
+            </div>
+            <div class="modal-footer border-top-0 justify-content-center pb-4">
+                <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" onclick="resetTrail(); bootstrap.Modal.getInstance(document.getElementById('simulationModal')).hide();">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Reiniciar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<script>
+    // --- ELEMENTOS DO DOM ---
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Elementos do Modal Bootstrap
+    const simModalEl = document.getElementById('simulationModal');
+    // Instancia o modal via JS do Bootstrap 5
+    const simModal = new bootstrap.Modal(simModalEl);
+    
+    // Elementos internos do modal para edição dinâmica
+    const modalTitle = document.getElementById('modalTitle');
+    const modalHeadline = document.getElementById('modalHeadline');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalHeader = document.querySelector('.modal-header');
+
+    // Indicador de Zoom
+    const canvasContainer = document.querySelector('.visualization-area');
+    if (!document.getElementById('zoomInd')) {
+        let zDiv = document.createElement('div');
+        zDiv.id = 'zoomInd';
+        zDiv.className = 'zoom-indicator';
+        zDiv.innerHTML = 'Zoom: 100%';
+        canvasContainer.appendChild(zDiv);
+    }
+    const zoomIndicator = document.getElementById('zoomInd');
+
+    // Inputs e Displays
+    const rangeMassa = document.getElementById('massaSolRange');
+    const rangeVel = document.getElementById('velInicialRange');
+    const rangeDist = document.getElementById('distInicialRange');
+    
+    const dispMassa = document.getElementById('valMassaSol');
+    const dispVel = document.getElementById('valVelInicial');
+    const dispDist = document.getElementById('valDistInicial');
+    
+    const liveDist = document.getElementById('liveDist');
+    const liveVel = document.getElementById('liveVel');
+    const liveForce = document.getElementById('liveForce');
+
+    // --- CONFIGURAÇÃO DA FÍSICA ---
+    const MAX_RENDER_DISTANCE = 25.0; // UA - Limite para considerar "Escape"
+    let G = 1.0;
+    let massaSol = 1.0;
+    let pos = {x: 1.0, y: 0.0};
+    let vel = {x: 0.0, y: 1.0};
+    let trail = []; 
+    let dt = 0.015; 
+    let isRunning = false;
+
+    // --- VISUALIZAÇÃO (AUTO-ZOOM) ---
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const maxScreenRadius = (Math.min(canvas.width, canvas.height) / 2) - 30;
+    
+    let currentScale = 100; 
+    let targetScale = 100;
+    let maxDistanceEncountered = 1.0; 
+
+    // --- FUNÇÕES AUXILIARES ---
+
+    function updateDisplayValues() {
+        dispMassa.textContent = rangeMassa.value;
+        dispVel.textContent = rangeVel.value;
+        dispDist.textContent = rangeDist.value + " UA";
+    }
+
+    // Função para chamar o Modal Personalizado
+    function showResultModal(type) {
+        isRunning = false; // Para a simulação imediatamente
+
+        if (type === 'crash') {
+            modalTitle.textContent = "Fim da Simulação";
+            modalHeadline.textContent = "Colisão Detectada!";
+            modalMessage.textContent = "A gravidade foi muito forte e puxou o planeta para a superfície da estrela.";
+            
+            // Estilo de Perigo (Vermelho)
+            modalIcon.className = "bi bi-exclamation-triangle-fill fs-1 text-danger";
+            modalHeader.className = "modal-header border-bottom-0 bg-danger bg-opacity-10";
+        } 
+        else if (type === 'escape') {
+            modalTitle.textContent = "Fim da Simulação";
+            modalHeadline.textContent = "Órbita Aberta (Escape)";
+            modalMessage.textContent = `O planeta atingiu a velocidade de escape e saiu do sistema (Distância > ${MAX_RENDER_DISTANCE} UA). Ele viajará pelo espaço indefinidamente.`;
+            
+            // Estilo de Info (Azul)
+            modalIcon.className = "bi bi-arrow-up-right-circle-fill fs-1 text-info";
+            modalHeader.className = "modal-header border-bottom-0 bg-info bg-opacity-10";
+        }
+
+        simModal.show();
+    }
+
+    function initSimulation() {
+        massaSol = parseFloat(rangeMassa.value);
+        let v_init = parseFloat(rangeVel.value);
+        let r_init = parseFloat(rangeDist.value);
+
+        pos = { x: r_init, y: 0.0 };
+        vel = { x: 0.0, y: v_init };
+
+        // Reset Zoom
+        maxDistanceEncountered = r_init;
+        targetScale = (maxScreenRadius / r_init) * 0.6;
+        currentScale = targetScale;
+
+        trail = []; 
+        
+        if (!isRunning) {
+            isRunning = true;
+            animate();
+        }
+    }
+
+    function resetTrail() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        initSimulation();
+    }
+
+    // --- MOTOR DE FÍSICA ---
+    function updatePhysics() {
+        let r_sq = pos.x * pos.x + pos.y * pos.y;
+        let r = Math.sqrt(r_sq);
+        
+        // 1. CHECAGEM DE COLISÃO (Raio < 0.1 UA)
+        if (r < 0.15) { // Aumentei um pouco para bater com o visual do sol
+             showResultModal('crash');
+             return;
+        }
+
+        // 2. CHECAGEM DE ESCAPE (Raio > Limite Definido)
+        if (r > MAX_RENDER_DISTANCE) {
+            showResultModal('escape');
+            return;
+        }
+
+        // Lógica de Zoom (igual anterior)
+        if (r > maxDistanceEncountered) maxDistanceEncountered = r;
+        let desiredScale = (maxScreenRadius / maxDistanceEncountered) * 0.9;
+        if (desiredScale < 5) desiredScale = 5;
+        targetScale = desiredScale;
+        currentScale += (targetScale - currentScale) * 0.05;
+
+        // Física (Euler-Cromer)
+        let F = (G * massaSol) / r_sq;
+        let ax = -F * (pos.x / r);
+        let ay = -F * (pos.y / r);
+
+        vel.x += ax * dt;
+        vel.y += ay * dt;
+        pos.x += vel.x * dt;
+        pos.y += vel.y * dt;
+
+        trail.push({x: pos.x, y: pos.y});
+        if (trail.length > 800) trail.shift(); 
+
+        // Atualizar UI
+        liveDist.textContent = r.toFixed(2) + " UA";
+        let v_mag = Math.sqrt(vel.x*vel.x + vel.y*vel.y);
+        liveVel.textContent = v_mag.toFixed(2) + " un";
+        liveForce.textContent = F.toFixed(2) + " N";
+        zoomIndicator.textContent = `Zoom: ${currentScale.toFixed(1)} px/UA`;
+    }
+
+    // --- RENDERIZAÇÃO ---
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Sol (Tamanho dinâmico com limite mínimo)
+        let sunRadius = Math.max(5, 15 * (currentScale / 100));
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, sunRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#fbbf24'; 
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#fbbf24';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Trilha
+        if (trail.length > 0) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.moveTo(centerX + trail[0].x * currentScale, centerY - trail[0].y * currentScale);
+            for (let i = 1; i < trail.length; i++) {
+                let point = trail[i];
+                ctx.lineTo(centerX + point.x * currentScale, centerY - point.y * currentScale);
+            }
+            ctx.stroke();
+        }
+
+        // Planeta
+        let planetRadius = Math.max(3, 8 * (currentScale / 100));
+        ctx.beginPath();
+        let px = centerX + pos.x * currentScale;
+        let py = centerY - pos.y * currentScale;
+        ctx.arc(px, py, planetRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#60a5fa';
+        ctx.fill();
+    }
+
+    function animate() {
+        if (!isRunning) return;
+        updatePhysics();
+        draw();
+        requestAnimationFrame(animate);
+    }
+
+    // --- EVENTOS ---
+    [rangeMassa, rangeVel, rangeDist].forEach(input => {
+        input.addEventListener('input', updateDisplayValues);
+    });
+
+    document.getElementById('btnStart').addEventListener('click', initSimulation);
+    document.getElementById('btnReset').addEventListener('click', resetTrail);
+
+    updateDisplayValues();
+    initSimulation();
+</script>
+
+<script>
+    // --- DADOS DO QUIZ ---
+    const quizData = [
+        {
+            question: "1. O que acontece com a Força Gravitacional ($F_g$) se dobrarmos a distância ($r$) entre o planeta e a estrela?",
+            options: [
+                "A força dobra de intensidade ($2x$).",
+                "A força cai pela metade ($0.5x$).",
+                "A força cai para um quarto ($0.25x$), pois é inversamente proporcional ao quadrado da distância.",
+                "A força permanece a mesma."
+            ],
+            correct: 2 // Índice da resposta correta (0, 1, 2, 3)
+        },
+        {
+            question: "2. Na simulação, se você aumentar muito a velocidade inicial do planeta, ele sai da tela e não volta mais. Isso ocorre porque:",
+            options: [
+                "A gravidade parou de funcionar longe da estrela.",
+                "Ele atingiu ou superou a Velocidade de Escape, vencendo a atração gravitacional.",
+                "A massa do planeta diminuiu conforme ele se moveu.",
+                "O atrito com o espaço freou o planeta."
+            ],
+            correct: 1
+        },
+        {
+            question: "3. Para obter uma órbita perfeitamente circular, a velocidade do planeta deve ser:",
+            options: [
+                "Qualquer velocidade serve.",
+                "A maior velocidade possível.",
+                "Zero (o planeta deve estar parado).",
+                "Um valor exato específico ($v = \\sqrt{GM/r}$), equilibrando inércia e gravidade."
+            ],
+            correct: 3
+        },
+        {
+            question: "4. Se aumentarmos a massa da Estrela ($M$) no simulador, mantendo a distância e velocidade do planeta iguais, o que acontece com a trajetória?",
+            options: [
+                "O planeta é puxado com mais força e sua órbita 'fecha' (encolhe) ou ele colide com a estrela.",
+                "O planeta é empurrado para longe.",
+                "Nada acontece, a massa da estrela não influencia a órbita.",
+                "O planeta entra em órbita perfeitamente quadrada."
+            ],
+            correct: 0
+        }
+    ];
+
+    // --- LÓGICA DO QUIZ ---
+    const questionsContainer = document.getElementById('quizQuestions');
+    const resultContainer = document.getElementById('quizResult');
+    const btnSubmit = document.getElementById('btnSubmitQuiz');
+    const btnReset = document.getElementById('btnResetQuiz');
+
+    // 1. Renderizar as questões
+    function renderQuiz() {
+        questionsContainer.innerHTML = ''; // Limpa
+        resultContainer.style.display = 'none';
+        btnReset.style.display = 'none';
+        btnSubmit.disabled = false;
+
+        quizData.forEach((item, index) => {
+            // Cria o HTML de cada questão
+            const qDiv = document.createElement('div');
+            qDiv.className = 'mb-4 border-bottom pb-3';
+            qDiv.id = `q_block_${index}`;
+            
+            let optionsHTML = '';
+            item.options.forEach((opt, optIndex) => {
+                optionsHTML += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q${index}" id="q${index}_opt${optIndex}" value="${optIndex}">
+                        <label class="form-check-label" for="q${index}_opt${optIndex}">
+                            ${opt}
+                        </label>
+                    </div>
+                `;
+            });
+
+            qDiv.innerHTML = `
+                <h6 class="fw-bold text-dark">${item.question}</h6>
+                <div class="ms-3 mt-2">
+                    ${optionsHTML}
+                </div>
+                <div class="mt-2" id="feedback_${index}" style="display:none; font-size: 0.9em;"></div>
+            `;
+            
+            questionsContainer.appendChild(qDiv);
+        });
+        
+        // Se usar MathJax, manda renderizar as fórmulas novas
+        if (window.MathJax) {
+            MathJax.typesetPromise([questionsContainer]);
+        }
+    }
+
+    // 2. Verificar respostas
+    function checkAnswers() {
+        let score = 0;
+        let answeredAll = true;
+
+        quizData.forEach((item, index) => {
+            const selected = document.querySelector(`input[name="q${index}"]:checked`);
+            const feedback = document.getElementById(`feedback_${index}`);
+            const block = document.getElementById(`q_block_${index}`);
+
+            if (!selected) {
+                answeredAll = false;
+                return; // Pula validação se não respondeu
+            }
+
+            const userAns = parseInt(selected.value);
+            feedback.style.display = 'block';
+
+            if (userAns === item.correct) {
+                score++;
+                feedback.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Correto!</span>';
+                block.classList.add('bg-success', 'bg-opacity-10', 'p-2', 'rounded');
+            } else {
+                feedback.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Incorreto. A resposta certa seria a opção ${item.correct + 1}.</span>`;
+                block.classList.add('bg-danger', 'bg-opacity-10', 'p-2', 'rounded');
+            }
+            
+            // Desabilita os radios para não mudar a resposta
+            const radios = document.getElementsByName(`q${index}`);
+            radios.forEach(r => r.disabled = true);
+        });
+
+        if (!answeredAll) {
+            alert("Por favor, responda todas as questões antes de verificar.");
+            // Remove estilos de feedback se tiver incompleto
+            quizData.forEach((_, i) => {
+                 document.getElementById(`feedback_${i}`).style.display = 'none';
+                 document.getElementById(`q_block_${i}`).className = 'mb-4 border-bottom pb-3';
+            });
+            return;
+        }
+
+        // Exibir Resultado Final
+        resultContainer.style.display = 'block';
+        if (score === quizData.length) {
+            resultContainer.className = 'alert alert-success mt-3';
+            resultContainer.innerHTML = `<strong>Parabéns!</strong> Você acertou ${score} de ${quizData.length} questões.`;
+        } else if (score >= quizData.length / 2) {
+            resultContainer.className = 'alert alert-warning mt-3';
+            resultContainer.innerHTML = `<strong>Muito bem!</strong> Você acertou ${score} de ${quizData.length} questões.`;
+        } else {
+            resultContainer.className = 'alert alert-danger mt-3';
+            resultContainer.innerHTML = `<strong>Continue estudando!</strong> Você acertou ${score} de ${quizData.length} questões.`;
+        }
+
+        btnSubmit.disabled = true;
+        btnReset.style.display = 'inline-block';
+    }
+
+    // Event Listeners
+    btnSubmit.addEventListener('click', checkAnswers);
+    btnReset.addEventListener('click', renderQuiz);
+
+    // Inicializa o quiz
+    renderQuiz();
+</script>
+{% endblock %}
