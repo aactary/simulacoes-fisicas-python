@@ -1,0 +1,607 @@
+{% extends 'manu/base.html' %}
+{% load static %}
+
+{% block title %}{{ simulation.title }} - Simulações Físicas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .simulation-controls { position: sticky; top: 120px; z-index: 100; }
+    .parameter-value { font-weight: 600; color: var(--primary-blue); }
+    .formula-container {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+        border: 2px solid rgba(37, 99, 235, 0.1);
+        border-radius: 1rem;
+        padding: 2rem;
+        margin: 1rem 0;
+    }
+    
+    canvas#simCanvas {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        box-shadow: inset 0 4px 6px rgba(0,0,0,0.05);
+        border: 1px solid #dee2e6;
+        width: 100%;
+        height: 350px;
+        cursor: grab;
+        touch-action: none; /* Evita scroll na tela ao arrastar no mobile */
+    }
+    
+    canvas#simCanvas:active {
+        cursor: grabbing;
+    }
+
+    .bulb-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        background-color: #212529;
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    #bulbIcon {
+        font-size: 5rem;
+        color: #495057;
+        transition: text-shadow 0.1s ease, color 0.1s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="simulation-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg">
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb text-white-50">
+                        <li class="breadcrumb-item"><a href="#" class="text-white-50">Início</a></li>
+                        <li class="breadcrumb-item active text-white">{{ simulation.category }}</li>
+                    </ol>
+                </nav>
+                <h1 class="display-5 fw-bold mb-3"><i class="bi bi-{{ simulation.icon }} me-3"></i>{{ simulation.title }}</h1>
+                <p class="lead mb-0">{{ simulation.description }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg">
+            
+            <div class="simulation-section mb-4">
+                <h3><i class="bi bi-sliders"></i> Parâmetros da Simulação</h3>
+                <div class="parameters-form card p-4 border-0 shadow-sm">
+                    <form id="simForm" class="row g-3 align-items-end" onsubmit="return false;">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="espirasRange" class="form-label">Número de Espiras ($N$)</label>
+                                <input type="range" class="form-range" id="espirasRange" min="1" max="10" step="1" value="{{ defaults.espiras }}">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">1</small>
+                                    <span class="parameter-value" id="valEspiras">{{ defaults.espiras }}</span>
+                                    <small class="text-muted">10</small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="campoRange" class="form-label">Força do Ímã ($B$)</label>
+                                <input type="range" class="form-range" id="campoRange" min="0.5" max="3.0" step="0.1" value="{{ defaults.forca_campo }}">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Fraco</small>
+                                    <span class="parameter-value" id="valCampo">{{ defaults.forca_campo }} T</span>
+                                    <small class="text-muted">Forte</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="resistenciaRange" class="form-label">Resistência ($R$)</label>
+                                <input type="range" class="form-range" id="resistenciaRange" min="1" max="50" step="1" value="{{ defaults.resistencia }}">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">1 $\Omega$</small>
+                                    <span class="parameter-value" id="valResistencia">{{ defaults.resistencia }} $\Omega$</span>
+                                    <small class="text-muted">50 $\Omega$</small>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="simulation-section mb-4">
+                <h3><i class="bi bi-activity"></i> Área Interativa</h3>
+                <div class="row g-3">
+                    <div class="col-lg-8">
+                        <div class="visualization-area position-relative">
+                            <div class="position-absolute top-0 start-50 translate-middle-x mt-2 text-muted fw-bold" style="pointer-events: none;">
+                                Arraste o ímã com o mouse ou dedo
+                            </div>
+                            <canvas id="simCanvas" width="700" height="350"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="bulb-container shadow-sm border">
+                            <i class="bi bi-lightbulb-fill" id="bulbIcon"></i>
+                            <h5 class="mt-3 text-white-50">Lâmpada</h5>
+                            <div class="fs-4 fw-bold text-warning" id="liveEmf">0.00 V</div>
+                            <div class="text-muted small">Tensão Induzida ($\varepsilon$)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm p-3">
+                            <h5 class="text-primary mb-3"><i class="bi bi-graph-up me-2"></i>Gráficos em Tempo Real</h5>
+                            <canvas id="chartCanvas" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="simulation-section mb-4">
+                <h3><i class="bi bi-calculator"></i> Fundamentação Física</h3>
+                <div class="formula-container">
+                    
+                    <div class="row mt-3">
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Fluxo Magnético</h6>
+                                <div class="formula-math text-center fs-4">
+                                    $$\Phi = B \cdot A \cdot \cos(\theta)$$
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="formula-block mb-3">
+                                <h6 class="text-center mb-2">Lei de Faraday-Lenz</h6>
+                                <div class="formula-math text-center fs-4">
+                                    $$\varepsilon = -N \frac{\Delta\Phi}{\Delta t}$$
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="simulation-section mb-4">
+                <h3><i class="bi bi-code-slash"></i> Anexos Pedagógicos</h3>
+                <div class="code-section">
+                    <ul class="nav nav-tabs" id="codeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="plano-tab" data-bs-toggle="tab" data-bs-target="#plano-code" type="button" role="tab">
+                                <i class="bi bi-file-text me-1"></i> Plano de Aula
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz-code" type="button" role="tab">
+                                <i class="bi bi-patch-question me-1"></i> Quiz
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="codeTabsContent">
+                        
+                        <div class="tab-pane fade show active" id="plano-code" role="tabpanel">
+                             <div class="container-fluid p-0 mt-3">
+                                <div class="card mb-3 border-start-warning shadow-sm">
+                                    <div class="card-body">
+                                        <h5 class="card-title text-warning-emphasis"><i class="bi bi-question-circle-fill me-2"></i>I. Problema Central</h5>
+                                        <p class="card-text fs-5">
+                                            Como o movimento relativo entre um campo magnético e um circuito elétrico pode gerar eletricidade (força eletromotriz)?
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="card shadow-sm border-start-success mb-3">
+                                    <div class="card-header bg-success bg-opacity-10">
+                                        <h6 class="mb-0 text-success-emphasis fw-bold">II. Objetivos</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="mb-0 small">
+                                            <li>Compreender o conceito de Fluxo Magnético ($\Phi$).</li>
+                                            <li>Verificar experimentalmente (via simulador) que apenas a <strong>variação</strong> do fluxo magnético gera corrente.</li>
+                                            <li>Relacionar a velocidade do ímã com a intensidade do brilho da lâmpada (Lei de Faraday).</li>
+                                            <li>Analisar qualitativamente a Lei de Lenz (sentido da corrente).</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="quiz-code" role="tabpanel">
+                            <div class="container-fluid p-0 mt-3">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <form id="quizForm">
+                                            <div id="quizQuestions"></div>
+                                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                                <button type="button" class="btn btn-outline-secondary me-md-2" id="btnResetQuiz" style="display: none;">
+                                                    <i class="bi bi-arrow-counterclockwise me-2"></i>Tentar Novamente
+                                                </button>
+                                                <button type="button" class="btn btn-success" id="btnSubmitQuiz">
+                                                    <i class="bi bi-check-circle-fill me-2"></i>Verificar Respostas
+                                                </button>
+                                            </div>
+                                        </form>
+                                        <div id="quizResult" class="alert mt-3 text-center" role="alert" style="display: none;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // --- ELEMENTOS DO DOM ---
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Inputs
+    const rangeEspiras = document.getElementById('espirasRange');
+    const rangeCampo = document.getElementById('campoRange');
+    const rangeResistencia = document.getElementById('resistenciaRange');
+    
+    // Displays
+    const dispEspiras = document.getElementById('valEspiras');
+    const dispCampo = document.getElementById('valCampo');
+    const dispResistencia = document.getElementById('valResistencia');
+    const liveEmfDisplay = document.getElementById('liveEmf');
+    const bulbIcon = document.getElementById('bulbIcon');
+
+    // --- VARIÁVEIS DA FÍSICA E ESTADO ---
+    let espiras = 5;
+    let B = 1.0;
+    let R = 10.0;
+    
+    // Posições
+    const coilCenter = { x: canvas.width / 2, y: canvas.height / 2 };
+    const coilWidth = 100;
+    const coilHeight = 150;
+    
+    let magnet = {
+        x: 100,
+        y: canvas.height / 2 - 25,
+        width: 120,
+        height: 50,
+        isDragging: false
+    };
+
+    // Variáveis de cálculo
+    let currentFlux = 0;
+    let lastFlux = 0;
+    let currentEmf = 0;
+    let currentI = 0;
+    let lastTime = performance.now();
+
+    // --- GRÁFICOS (Chart.js) ---
+    const chartCtx = document.getElementById('chartCanvas').getContext('2d');
+    const maxDataPoints = 60;
+    const chartConfig = {
+        type: 'line',
+        data: {
+            labels: Array(maxDataPoints).fill(''),
+            datasets: [
+                {
+                    label: 'Fluxo Magnético (Φ)',
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    data: Array(maxDataPoints).fill(0),
+                    yAxisID: 'y',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Corrente Induzida (i)',
+                    borderColor: 'rgb(239, 68, 68)',
+                    data: Array(maxDataPoints).fill(0),
+                    yAxisID: 'y1',
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            animation: false,
+            scales: {
+                y: { type: 'linear', display: true, position: 'left', min: -5, max: 5 },
+                y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, min: -2, max: 2 },
+                x: { display: false }
+            },
+            elements: { point: { radius: 0 } }
+        }
+    };
+    const realTimeChart = new Chart(chartCtx, chartConfig);
+
+    // --- EVENTOS DE INTERAÇÃO (Mouse e Touch) ---
+    function getMousePos(evt) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+        const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+
+    function isInsideMagnet(pos) {
+        return pos.x > magnet.x && pos.x < magnet.x + magnet.width &&
+               pos.y > magnet.y && pos.y < magnet.y + magnet.height;
+    }
+
+    function handleDown(e) {
+        e.preventDefault();
+        const pos = getMousePos(e);
+        if (isInsideMagnet(pos)) {
+            magnet.isDragging = true;
+        }
+    }
+
+    function handleMove(e) {
+        e.preventDefault();
+        if (magnet.isDragging) {
+            const pos = getMousePos(e);
+            magnet.x = pos.x - magnet.width / 2;
+            magnet.y = pos.y - magnet.height / 2;
+        }
+    }
+
+    function handleUp(e) {
+        e.preventDefault();
+        magnet.isDragging = false;
+    }
+
+    canvas.addEventListener('mousedown', handleDown);
+    canvas.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    canvas.addEventListener('touchstart', handleDown, {passive: false});
+    canvas.addEventListener('touchmove', handleMove, {passive: false});
+    window.addEventListener('touchend', handleUp);
+
+    function updateParams() {
+        espiras = parseInt(rangeEspiras.value);
+        B = parseFloat(rangeCampo.value);
+        R = parseFloat(rangeResistencia.value);
+        
+        dispEspiras.textContent = espiras;
+        dispCampo.textContent = B.toFixed(1) + " T";
+        dispResistencia.textContent = R + " Ω";
+    }
+
+    [rangeEspiras, rangeCampo, rangeResistencia].forEach(el => el.addEventListener('input', updateParams));
+
+    // --- MOTOR DE FÍSICA ---
+    function updatePhysics(timestamp) {
+        const dt = (timestamp - lastTime) / 1000; // Segundos
+        lastTime = timestamp;
+        if (dt === 0) return;
+
+        // Calcular distância entre o centro do ímã e a espira
+        const magCenterX = magnet.x + magnet.width / 2;
+        const magCenterY = magnet.y + magnet.height / 2;
+        const dx = magCenterX - coilCenter.x;
+        const dy = magCenterY - coilCenter.y;
+        const distanceSq = dx*dx + dy*dy;
+
+        // Modelo simplificado de Fluxo: Maior quando próximo ao centro
+        // Phi = B / (1 + distanceSq * 0.0001)
+        lastFlux = currentFlux;
+        currentFlux = (B * 1000) / (100 + distanceSq * 0.05);
+        
+        // Sinal depende do lado em que está (aproximando vs afastando)
+        if (dx < 0) currentFlux = -currentFlux; 
+
+        // Lei de Faraday: Emf = -N * (dPhi/dt)
+        if (magnet.isDragging) {
+            currentEmf = -espiras * ((currentFlux - lastFlux) / dt) * 0.01;
+        } else {
+            // Decaimento suave se soltar
+            currentEmf *= 0.8; 
+        }
+        
+        currentI = currentEmf / R;
+
+        // Atualizar Lâmpada
+        const brightness = Math.min(1.0, Math.abs(currentEmf) / 5.0);
+        if (brightness > 0.05) {
+            bulbIcon.style.color = `rgba(255, 193, 7, 1)`;
+            bulbIcon.style.textShadow = `0 0 ${brightness * 50}px rgba(255, 193, 7, ${brightness}), 0 0 ${brightness * 20}px rgba(255, 255, 255, 0.8)`;
+        } else {
+            bulbIcon.style.color = '#495057';
+            bulbIcon.style.textShadow = 'none';
+        }
+        
+        liveEmfDisplay.textContent = Math.abs(currentEmf).toFixed(2) + " V";
+
+        // Atualizar Gráfico (a cada 3 frames para performance)
+        if (Math.random() < 0.3) {
+            const dataFlux = chartConfig.data.datasets[0].data;
+            const dataCurrent = chartConfig.data.datasets[1].data;
+            
+            dataFlux.shift();
+            dataFlux.push(currentFlux / 2); // Ajuste de escala visual
+            
+            dataCurrent.shift();
+            dataCurrent.push(currentI);
+            
+            realTimeChart.update();
+        }
+    }
+
+    // --- RENDERIZAÇÃO ---
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Desenhar Espira (Bobina)
+        ctx.lineWidth = 4;
+        for(let i = 0; i < espiras; i++) {
+            ctx.beginPath();
+            ctx.ellipse(coilCenter.x + (i * 8 - (espiras*4)), coilCenter.y, coilWidth/2, coilHeight/2, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = '#b45309'; // Cor de cobre
+            ctx.stroke();
+        }
+
+        // Desenhar Ímã
+        // Polo Sul (Azul)
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(magnet.x, magnet.y, magnet.width/2, magnet.height);
+        // Polo Norte (Vermelho)
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(magnet.x + magnet.width/2, magnet.y, magnet.width/2, magnet.height);
+        
+        // Textos N e S
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('S', magnet.x + magnet.width/4, magnet.y + magnet.height/2);
+        ctx.fillText('N', magnet.x + 3*magnet.width/4, magnet.y + magnet.height/2);
+    }
+
+    function animate(timestamp) {
+        updatePhysics(timestamp);
+        draw();
+        requestAnimationFrame(animate);
+    }
+
+    // Inicialização
+    updateParams();
+    requestAnimationFrame(animate);
+</script>
+
+<script>
+    // --- LÓGICA DO QUIZ ---
+    const quizData = [
+        {
+            question: "1. O que acontece com a lâmpada se o ímã for deixado parado dentro da espira?",
+            options: [
+                "A lâmpada brilha com intensidade máxima constante.",
+                "A lâmpada não acende, pois não há variação do fluxo magnético.",
+                "A lâmpada pisca intermitentemente.",
+                "A lâmpada queima devido ao excesso de campo."
+            ],
+            correct: 1
+        },
+        {
+            question: "2. De acordo com a Lei de Faraday, se você mover o ímã mais rapidamente através da espira:",
+            options: [
+                "A força eletromotriz (tensão) diminui.",
+                "O fluxo magnético se torna negativo para sempre.",
+                "A força eletromotriz gerada aumenta, acendendo a lâmpada com mais brilho.",
+                "Nada muda na corrente induzida."
+            ],
+            correct: 2
+        },
+        {
+            question: "3. O sinal negativo na fórmula $\\varepsilon = -N \\frac{\\Delta\\Phi}{\\Delta t}$ (Lei de Lenz) indica que:",
+            options: [
+                "A corrente induzida cria um campo magnético que se opõe à variação do fluxo que a gerou.",
+                "A eletricidade gerada é sempre de carga negativa (elétrons).",
+                "O ímã perde força magnética com o tempo.",
+                "O tempo está voltando para trás."
+            ],
+            correct: 0
+        }
+    ];
+
+    const questionsContainer = document.getElementById('quizQuestions');
+    const resultContainer = document.getElementById('quizResult');
+    const btnSubmit = document.getElementById('btnSubmitQuiz');
+    const btnReset = document.getElementById('btnResetQuiz');
+
+    function renderQuiz() {
+        questionsContainer.innerHTML = ''; 
+        resultContainer.style.display = 'none';
+        btnReset.style.display = 'none';
+        btnSubmit.disabled = false;
+
+        quizData.forEach((item, index) => {
+            const qDiv = document.createElement('div');
+            qDiv.className = 'mb-4 border-bottom pb-3';
+            qDiv.id = `q_block_${index}`;
+            
+            let optionsHTML = '';
+            item.options.forEach((opt, optIndex) => {
+                optionsHTML += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q${index}" id="q${index}_opt${optIndex}" value="${optIndex}">
+                        <label class="form-check-label" for="q${index}_opt${optIndex}">${opt}</label>
+                    </div>`;
+            });
+
+            qDiv.innerHTML = `
+                <h6 class="fw-bold text-dark">${item.question}</h6>
+                <div class="ms-3 mt-2">${optionsHTML}</div>
+                <div class="mt-2" id="feedback_${index}" style="display:none; font-size: 0.9em;"></div>
+            `;
+            questionsContainer.appendChild(qDiv);
+        });
+        
+        if (window.MathJax) MathJax.typesetPromise([questionsContainer]);
+    }
+
+    function checkAnswers() {
+        let score = 0;
+        let answeredAll = true;
+
+        quizData.forEach((item, index) => {
+            const selected = document.querySelector(`input[name="q${index}"]:checked`);
+            const feedback = document.getElementById(`feedback_${index}`);
+            const block = document.getElementById(`q_block_${index}`);
+
+            if (!selected) { answeredAll = false; return; }
+
+            const userAns = parseInt(selected.value);
+            feedback.style.display = 'block';
+
+            if (userAns === item.correct) {
+                score++;
+                feedback.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Correto!</span>';
+                block.classList.add('bg-success', 'bg-opacity-10', 'p-2', 'rounded');
+            } else {
+                feedback.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Incorreto. A resposta certa seria a opção ${item.correct + 1}.</span>`;
+                block.classList.add('bg-danger', 'bg-opacity-10', 'p-2', 'rounded');
+            }
+            
+            document.getElementsByName(`q${index}`).forEach(r => r.disabled = true);
+        });
+
+        if (!answeredAll) {
+            alert("Por favor, responda todas as questões antes de verificar.");
+            quizData.forEach((_, i) => {
+                 document.getElementById(`feedback_${i}`).style.display = 'none';
+                 document.getElementById(`q_block_${i}`).className = 'mb-4 border-bottom pb-3';
+            });
+            return;
+        }
+
+        resultContainer.style.display = 'block';
+        if (score === quizData.length) {
+            resultContainer.className = 'alert alert-success mt-3';
+            resultContainer.innerHTML = `<strong>Parabéns!</strong> Você acertou ${score} de ${quizData.length} questões.`;
+        } else {
+            resultContainer.className = 'alert alert-warning mt-3';
+            resultContainer.innerHTML = `<strong>Você acertou ${score} de ${quizData.length} questões.</strong> Continue revisando!`;
+        }
+
+        btnSubmit.disabled = true;
+        btnReset.style.display = 'inline-block';
+    }
+
+    btnSubmit.addEventListener('click', checkAnswers);
+    btnReset.addEventListener('click', renderQuiz);
+    renderQuiz();
+</script>
+{% endblock %}

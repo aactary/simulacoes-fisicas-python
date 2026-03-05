@@ -309,6 +309,26 @@ def lei_gravitacao_universal_newton(request):
     }
     return render(request, 'simulacoes/lei_gravitacao_universal_newton.html', context)
 
+def lei_faraday_inducao(request):
+    # Valores iniciais padrão
+    context = {
+        'simulation': {
+            'title': 'Lei de Faraday-Lenz',
+            'category': 'Eletromagnetismo',
+            'icon': 'magnet', # Ícone do Bootstrap
+            'description': 'Simule a indução eletromagnética arrastando um ímã através de uma espira. Observe a geração de corrente elétrica, o acendimento da lâmpada e os gráficos em tempo real.',
+            'updated_at': '05/03/2026'
+        },
+        # Parâmetros padrão para os inputs HTML
+        'defaults': {
+            'espiras': 5,          # Número de espiras na bobina
+            'forca_campo': 1.0,    # Intensidade do campo magnético
+            'resistencia': 10.0    # Resistência do circuito
+        }
+    }
+    return render(request, 'simulacoes/lei_faraday_inducao.html', context)
+
+
 ####################### Demais funções auxiliares #######################
 def gerar_grafico_plotly(x, y, velocidade, angulo, gravidade):
     
